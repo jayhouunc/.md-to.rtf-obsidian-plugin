@@ -35,7 +35,7 @@ export default class mdToRtfPlugin extends Plugin{
 
 	async onload(){
 		this.loadSettings();
-		
+				
 		this.registerEvent(
 			this.app.workspace.on('file-menu', (menu: Menu, file:TFile) =>{
 				if(file instanceof TFile && file.extension === "md")
@@ -104,29 +104,57 @@ export default class mdToRtfPlugin extends Plugin{
 
 	}
 
-	public findAccurateDirectoryBasedOnValue(key: number, file: TFile): void{
-
-		if(key === 0){
-			this.folderPathSetting.directoryPath = path.join(os.homedir(), "Desktop")
+	public checkForValidDesktopBeforeSaving(): number{
+		if(fs.existsSync(DEFAULT_FOLDERPATH_SETTING.directoryPath)){
+			this.folderPathSetting.directoryPath = DEFAULT_FOLDERPATH_SETTING.directoryPath;
 			this.saveSettings();
+			return 0;
+		}else{
+			new Notice(this.pluginName + "⚠️Could not find the desktop! Please rename the desktop to 'Desktop' or change plugin setting to custom directory.");
+			return -1;
+		}
+			
+	}
+
+	private checkValidDirectoryPath(directoryPath: string): number{
+
+		if(fs.existsSync(directoryPath))
+			return 0;
+		else{
+			new Notice(this.pluginName + "⚠️Invalid custom directory path. Please set a valid path to a folder to avoid errors!")
+			return -1;
 		}
 
-		if(key === 1)
-			this.setCurrentClickedOnFileDirectory(this.app, file);
+	}
+	private findAccurateDirectoryBasedOnValue(key: number, file: TFile): number{
 
+		if(key === 0)
+			return this.checkForValidDesktopBeforeSaving();
+			
+		if(key === 1){
+			this.setCurrentClickedOnFileDirectory(this.app, file);
+			return 0;
+		}
+		
+		if(key === 2)
+			return this.checkValidDirectoryPath(this.folderPathSetting.directoryPath);
+
+		return 0;
 
 	}
 
 	private conversionOfFileToRTF(file: TFile){
-		this.findAccurateDirectoryBasedOnValue(this.folderPathSetting.keyForAccurateDirectory, file);
+		
+		if(this.findAccurateDirectoryBasedOnValue(this.folderPathSetting.keyForAccurateDirectory, file) === -1)
+			return;
 
 		const outputFilePath: string = path.join(this.folderPathSetting.directoryPath, file.basename + ".rtf");
 
 		try {
 			fs.writeFileSync(outputFilePath, "test", 'utf-8');
-			console.log(`Successfully created RTF file at ${outputFilePath}`);
+			new Notice(this.pluginName + `Successfully created RTF file at ${outputFilePath}`);
 		} catch (error) {
-			console.error('Error writing RTF file:', error);
+			new Notice(this.pluginName + '⚠️Error writing RTF file:' + error);
 		}
 
 
@@ -156,34 +184,3 @@ export default class mdToRtfPlugin extends Plugin{
 
 	
 }
-
-
-//this might be code i'll use for implementation of the third (other. please specifiy) option
-
-/*
-	//this was in saveSettings() method
-		if(this.folderPathSetting.value === "")
-				this.folderPathSetting = this.setDefaultFolderPath();
-			//If user sets the folder path to nothing, program will attempt to set folder path to the default.
-			//The check like last time ( in "checkAndSetDefaultFolderPath()" method) will still run, as again program doesn't know if
-			//it can find the desktop or not. 
-
-
-		if(!existsSync(this.folderPathSetting.value)){
-			new Notice(this.pluginName + "⚠️Invalid directory path. Please manually set a valid path to a folder to avoid errors!");
-			this.folderPathSetting = this.setDefaultFolderPath();
-		}
-		//Does the same thing as commented on above, but if the user somehow set the folder path to something invalid or inaccessible.
-
-
-	private setDefaultFolderPath(): folderPathSetting{
-		if(existsSync(DEFAULT_FOLDERPATH.value))
-			return DEFAULT_FOLDERPATH;
-		else
-			return Object.assign({}, undefined);
-	}
-
-			
-		
-
-*/
