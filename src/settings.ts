@@ -1,6 +1,5 @@
 import {App, DropdownComponent, PluginSettingTab, Setting} from "obsidian";
 import MyPlugin from "./main";
-import { debug } from "console";
 
 
 export class SampleSettingTab extends PluginSettingTab {

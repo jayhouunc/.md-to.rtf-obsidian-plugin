@@ -1,5 +1,6 @@
 import {FileSystemAdapter, App, Plugin, TFile, Menu, Notice} from 'obsidian'
-import { SampleSettingTab } from './settings';
+import {SampleSettingTab } from './settings';
+import ToRTFConverter from './converter'
 import * as fs from 'fs';
 import * as os from "os";
 import * as path from "path";
@@ -24,24 +25,26 @@ const UNDEFINED_FOLDERPATH_SETTING: folderPathSetting = {
 	keyForAccurateDirectory: -1
 }
 
-
 export default class mdToRtfPlugin extends Plugin{
- 
+	
 	folderPathSetting: folderPathSetting;
 
-	pluginName: string = "(.MD to.RTF Converter) ";
+	public static pluginName: string = "(.MD to.RTF Converter) ";
 	currentClickedFileDirectory: string;
 	
-
+	converter: ToRTFConverter = new ToRTFConverter();
+	
 	async onload(){
 		this.loadSettings();
-				
 		this.registerEvent(
+		
 			this.app.workspace.on('file-menu', (menu: Menu, file:TFile) =>{
 				if(file instanceof TFile && file.extension === "md")
 					this.addMenuItems(menu, file);
 			})
 		);
+
+	
 
 
 
@@ -82,7 +85,7 @@ export default class mdToRtfPlugin extends Plugin{
 			//Will assign the default folder path ( as the desktop, if we can find the path to the desktop )
 		}else{
 			this.folderPathSetting = Object.assign({}, UNDEFINED_FOLDERPATH_SETTING);
-			new Notice(this.pluginName + "⚠️Could not set a default directory path. Please manually set one to avoid errors!");
+			mdToRtfPlugin.newErrorNotice("Could not set a default directory path. Please manually set one to avoid errors!");
 			//Will assign undefined folder path setting to folder path setting if default (dekstop) directory could not be found.
 		}
 
@@ -110,7 +113,7 @@ export default class mdToRtfPlugin extends Plugin{
 			this.saveSettings();
 			return 0;
 		}else{
-			new Notice(this.pluginName + "⚠️Could not find the desktop! Please rename the desktop to 'Desktop' or change plugin setting to custom directory.");
+			mdToRtfPlugin.newErrorNotice("Could not find the desktop! Please rename the desktop to 'Desktop' or change plugin setting to custom directory.");
 			return -1;
 		}
 			
@@ -121,7 +124,7 @@ export default class mdToRtfPlugin extends Plugin{
 		if(fs.existsSync(directoryPath))
 			return 0;
 		else{
-			new Notice(this.pluginName + "⚠️Invalid custom directory path. Please set a valid path to a folder to avoid errors!")
+			mdToRtfPlugin.newErrorNotice("Invalid custom directory path. Please set a valid path to a folder to avoid errors!");
 			return -1;
 		}
 
@@ -149,14 +152,8 @@ export default class mdToRtfPlugin extends Plugin{
 			return;
 
 		const outputFilePath: string = path.join(this.folderPathSetting.directoryPath, file.basename + ".rtf");
-
-		try {
-			fs.writeFileSync(outputFilePath, "test", 'utf-8');
-			new Notice(this.pluginName + `Successfully created RTF file at ${outputFilePath}`);
-		} catch (error) {
-			new Notice(this.pluginName + '⚠️Error writing RTF file:' + error);
-		}
-
+		this.converter.convert(outputFilePath);
+		
 
 	}
 
@@ -175,12 +172,20 @@ export default class mdToRtfPlugin extends Plugin{
 			item.setTitle("⠀Convert note to RTF");
 			item.setIcon('file-symlink');
 			item.onClick(async () =>{
-				new Notice(this.pluginName + "Converting note to RTF.....");
+				mdToRtfPlugin.newNotice("Converting note to RTF.....");
 				this.conversionOfFileToRTF(file);
 			});
 		});
 	}
 
 
+	
+	public static newNotice(text: string): Notice{
+		return new Notice(this.pluginName + " " + text);
+	}
+
+	public static newErrorNotice(text: string): Notice{
+		return new Notice(this.pluginName + "⚠️" + text);
+	}
 	
 }
