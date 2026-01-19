@@ -139,6 +139,7 @@ export default class ToRTFConverter{
         let color = getComputedStyle(document.body).getPropertyValue("--text-highlight-bg-rgb")
         color = color.replace(/[ ]/g, "");
         let rgbValue: string[] = color.split(",");
+        rgbValue = this.addHighlightOffset(rgbValue);
         color = " ;\\red"+ rgbValue[0] + "\\green"+ rgbValue[1] + "\\blue"+ rgbValue[2] +";";
          //Gets the highlight color of the vault from global varible.
          //(It looks something like (255, 255, 255, 0.1), so program gets replaces any space characters with nothing. )
@@ -153,6 +154,39 @@ export default class ToRTFConverter{
 
 
         return color;
+    }
+
+    //old: {\colortbl ;\red255\green208\blue0;}
+    //new: {\colortbl ;\red255\green218\blue10;}
+
+    private addHighlightOffset(rawHighlightColor: string[]): string[] {
+        //Purpose of this method is that rtf doesn't have an alpha value
+        //so this method is to try and emulate that by just adding an offset to make the text lighter.
+
+        let offset = 90;
+        let offsettedHighlightColor: number[] = rawHighlightColor.map(Number);
+
+        for(let i = 0; i < offsettedHighlightColor.length; i++){
+            
+            let element = offsettedHighlightColor[i];
+            if(element === undefined || null)
+                break;
+             //This is needed to check if the element actually exists or not. Will throw an error if something like this isn't in place..
+            
+            if(element + offset > 255)
+                element = 255;
+            else
+                element += offset;
+             //This if else statement checks if the element (aka, the color value) will be over 255 when the offset is applied.)
+             //If it is, just set the color value to 255, if it isn't, add the offset to the color value.
+
+            offsettedHighlightColor[i] = element;
+
+        }
+
+        return offsettedHighlightColor.map(String);
+        
+
     }
 
     private basicContentData(): string{
