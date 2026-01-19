@@ -1,5 +1,5 @@
 import {FileSystemAdapter, App, Plugin, TFile, Menu, Notice} from 'obsidian'
-import {SampleSettingTab } from './settings';
+import { mdToRtfPluginSettings } from './settings';
 import ToRTFConverter from './converter'
 import * as fs from 'fs';
 import * as os from "os";
@@ -52,7 +52,7 @@ export default class mdToRtfPlugin extends Plugin{
 
 	public loadSettings(){
 		this.checkAndSetDefaultFolderPath();
-		this.addSettingTab(new SampleSettingTab(this.app, this));
+		this.addSettingTab(new mdToRtfPluginSettings(this.app, this));
 	}
 
 	public async saveSettings(){
@@ -92,18 +92,26 @@ export default class mdToRtfPlugin extends Plugin{
 	}
 
 
-	private setCurrentClickedOnFileDirectory(app: App, file: TFile): void{
+	private setCurrentClickedOnFileDirectory(app: App, file: TFile): number{
 
 		const adapter = app.vault.adapter;
-		let tempString: string
+		let tempPathString: string
 
 		if (adapter instanceof FileSystemAdapter){
-			tempString = adapter.getFullPath(file.path);
-			this.currentClickedFileDirectory = tempString.replace(file.name, "");
+			tempPathString = adapter.getFullPath(file.path).replace(file.name, "");
+			if(this.checkValidDirectoryPath(tempPathString) === -1) return -1;
+			
+			this.currentClickedFileDirectory = tempPathString;
 
 			this.folderPathSetting.directoryPath = this.currentClickedFileDirectory;
 			this.saveSettings();
+			return 0;
+		}else{
+			mdToRtfPlugin.newErrorNotice("Could not find 'FileSystemAdapter'");
+			return -1;
 		}
+
+		
 
 	}
 
@@ -131,28 +139,37 @@ export default class mdToRtfPlugin extends Plugin{
 	}
 	private findAccurateDirectoryBasedOnValue(key: number, file: TFile): number{
 
-		if(key === 0)
-			return this.checkForValidDesktopBeforeSaving();
-			
-		if(key === 1){
-			this.setCurrentClickedOnFileDirectory(this.app, file);
-			return 0;
+
+		switch(key){
+			case 0:
+				return this.checkForValidDesktopBeforeSaving();
+			case 1:
+				return this.setCurrentClickedOnFileDirectory(this.app, file);
+			case 2:
+				return this.checkValidDirectoryPath(this.folderPathSetting.directoryPath);
+			default:
+				mdToRtfPlugin.newErrorNotice("Invalid option for folder path setting. ");
+				return -1;
 		}
-		
-		if(key === 2)
-			return this.checkValidDirectoryPath(this.folderPathSetting.directoryPath);
-
-		return 0;
-
 	}
 
-	private conversionOfFileToRTF(file: TFile){
+	private async conversionOfFileToRTF(file: TFile){
 		
 		if(this.findAccurateDirectoryBasedOnValue(this.folderPathSetting.keyForAccurateDirectory, file) === -1)
 			return;
+		
+		
+		let inputFilePath: string;
+		const adapter = this.app.vault.adapter;
+		if (adapter instanceof FileSystemAdapter) inputFilePath = adapter.getFullPath(file.path);
+		else {
+			mdToRtfPlugin.newErrorNotice("Could not find 'FileSystemAdapter'");
+			return;
+		}
 
 		const outputFilePath: string = path.join(this.folderPathSetting.directoryPath, file.basename + ".rtf");
-		this.converter.convert(outputFilePath);
+
+		this.converter.convert(inputFilePath, outputFilePath);
 		
 
 	}

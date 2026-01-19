@@ -1,11 +1,11 @@
-import {App, DropdownComponent, PluginSettingTab, Setting} from "obsidian";
-import MyPlugin from "./main";
+import {App, PluginSettingTab, Setting} from "obsidian";
+import mdToRtfPlugin from "./main";
 
 
-export class SampleSettingTab extends PluginSettingTab {
-	plugin: MyPlugin;
+export class mdToRtfPluginSettings extends PluginSettingTab {
+	plugin: mdToRtfPlugin;
 
-	constructor(app: App, plugin: MyPlugin) {
+	constructor(app: App, plugin: mdToRtfPlugin) {
 		super(app, plugin);
 		this.plugin = plugin;
 	}
@@ -93,25 +93,27 @@ export class SampleSettingTab extends PluginSettingTab {
 		this.plugin.folderPathSetting.keyForAccurateDirectory = parseInt(value);
 		await this.plugin.saveSettings();
 
-		if(value === '0'){
-			this.deleteCustomDirectoryOption();
-			this.plugin.checkForValidDesktopBeforeSaving();
-		}
-		if(value === '1'){
-			this.deleteCustomDirectoryOption();
-			this.plugin.folderPathSetting.directoryPath = "";
-			//This directory path is set to "" by default when user clicks the option 'same place as original note'.
-			//Reason is because at the moment the program doesn't don't know which note it should be looking for.
-			//Therefore, the program will have to wait for the user to actually click on a note and press the ".md-to.rtf" button
-			//so it can find its directory.
+		switch(value){
+			case '0':
+				this.deleteCustomDirectoryOption();
+				this.plugin.checkForValidDesktopBeforeSaving();
+				break;
+			case '1':
+				this.deleteCustomDirectoryOption();
+				this.plugin.folderPathSetting.directoryPath = "";
+				 //This directory path is set to "" by default when user clicks the option 'same place as original note'.
+				 //Reason is because at the moment the program doesn't don't know which note it should be looking for.
+				 //Therefore, the program will have to wait for the user to actually click on a note and press the ".md-to.rtf" button
+				 //so it can find its directory.
 
-			await this.plugin.saveSettings();
+				await this.plugin.saveSettings();
+				break;
+			case '2':
+				this.plugin.folderPathSetting.directoryPath = "";
+				this.createCustomDirectoryOption();
+				break;
 		}
-
-		if(value === '2'){
-			this.plugin.folderPathSetting.directoryPath = "";
-			this.createCustomDirectoryOption();
-		}
+		
 			
 	}
 
