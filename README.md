@@ -1,3 +1,16 @@
+## Code Commentary & Design Notes
+
+This project intentionally contains extensive inline comments.
+
+The goal was to:
+- Document decisions and tradeoffs
+- Capture reasoning during experimentation
+- Make future refactoring and extension easier
+- Demonstrate how I think through problems, not just final output
+
+In a production or team environment, many of these comments would be
+condensed into doc comments or removed once the design stabilizes.
+
 # Obsidian Sample Plugin
 
 This is a sample plugin for Obsidian (https://obsidian.md).

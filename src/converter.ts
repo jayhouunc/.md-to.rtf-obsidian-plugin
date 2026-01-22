@@ -49,8 +49,9 @@ export default class ToRTFConverter{
             })
 
             rl.on("close", () =>{
-                return resolve(editedContent.toString().replace(/[,]/g, ""));
+                return resolve(editedContent.join(""));
             })
+
         }) 
 
         return finalizedContent;
@@ -165,9 +166,8 @@ export default class ToRTFConverter{
          */
 
 
-        let finalFontString = finalFontStringArray.toString();
-        finalFontString = finalFontString.replace(/[,]/g, "");
-        return finalFontString;
+       
+        return finalFontStringArray.join("");
          //Converts the array into a string.Then replaces all "," characters from that conversion
          //into nothing. (This is needed cause it will do "T,e,s,t, ,S,e,n,t,a,n,c,e")
          //Finally, returns the properly cleaned up font. :)

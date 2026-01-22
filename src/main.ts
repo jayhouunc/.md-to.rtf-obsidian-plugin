@@ -44,10 +44,6 @@ export default class mdToRtfPlugin extends Plugin{
 			})
 		);
 
-	
-
-
-
 	}
 
 	public loadSettings(){
