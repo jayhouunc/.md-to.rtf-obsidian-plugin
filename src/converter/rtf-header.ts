@@ -1,12 +1,13 @@
 import mdToRtfPlugin from "main";
 
 
-const DEFAULT_FONT:string = "Calibri";
-const DEFAULT_HIGLIGHT_COLOR = " ;\\red255\\green255\\blue255;";
-const DEFAULT_FONT_SIZE = "32";
+const DEFAULT_FONT = "Calibri";
+const DEFAULT_HIGLIGHT_COLOR = " ;\\red255\\green255\\blue0;";
+const DEFAULT_FONT_SIZE = "\\fs32";
  //Rtf for some reason renders the font size as 2x the actual size. 
  //Meaning. If the font size is 20px, in the rtf it will need to be defined as 40.
  //So the actual default is half of the value put into the constant;
+
 
 
 interface textHeadingData{
@@ -21,76 +22,97 @@ export default class RtfHeader{
      //because user could change styles or data inbetween each conversion..
 
 
-    static textHeaders: textHeadingData[] = [];
-    static fontSize: string;
-
+    public static textHeaders: textHeadingData[] = []; 
+     // textHeaders[1] = Heading 1 data..
+     // textHeaders[2] = Heading 2 data..
+     // etc...
+    public static fontSize: string = this.getFontSize();
 
     public static setRtfHeader(): string{
 
-        this.fontSize = this.getFontSize();
-        this.getTextHeadingsData();
-
+        this.findTextHeadingsData();
 
         let finishedHeader: string = 
-         "{\\rtf1\\ansi\\ansicpg1252\\deff0\\nouicompat{\\fonttbl{\\f0\\fnil\\fcharset0 INSERT_FONT;}}\n" +
-         "{\\colortblINSERT_HIGHLIGHT_COLOR}\n" +
+         "{\\rtf1\\ansi\\ansicpg1252\\deff0\\nouicompat\n" +
+         "{\\fonttbl{\\f0\\fnil\\fcharset0 INSERT_FONT;}}\n" +
+         "{\\colortblINSERT_COLORS}\n" +
          "{\\*\\generator .md-to-.rtf Converter plugin for obsidian!}\\viewkind4\\uc1\n" +
-         "\\pard\\f0\\fsINSERT_FONT_SIZE ";
+         "\\pard\\f0INSERT_DEFAULT_FONT_SIZE\n";
     
         finishedHeader = finishedHeader.replace("INSERT_FONT", this.getObsidianVaultFont());
-        finishedHeader = finishedHeader.replace("INSERT_HIGHLIGHT_COLOR", this.getHighlightColor());
-        finishedHeader = finishedHeader.replace("INSERT_FONT_SIZE", this.fontSize)
+        finishedHeader = finishedHeader.replace("INSERT_COLORS", this.setHeaderColors());
+        finishedHeader = finishedHeader.replace("INSERT_DEFAULT_FONT_SIZE", this.fontSize);
 
         return finishedHeader;
     }
 
 
+    private static setHeaderColors():string{
+
+        let finalColorString = "";
+        //First going to set the highlight color
+        finalColorString += this.getHighlightColor();
+
+        for(let i = 1; i <= 5; i++){
+            finalColorString += this.textHeaders[i]?.headingColor;
+        }
+
+        return finalColorString.replace(/; ;/g, ";"); 
+         //Since we appended colors together, and their formatting is ;color here;
+         //We could end up with "; ;", which could break the rtf..
+
+    }
 
 
-    private static defaultTextHeadingData(): textHeadingData{
+    public static getTextHeadingData(index: number): textHeadingData{
+        return this.textHeaders[index] ?? this.defaultTextHeadingData();
+    }
+
+    public static defaultTextHeadingData(): textHeadingData{
         return {headingSize: DEFAULT_FONT_SIZE, headingColor: ";\\red0\\green0\\blue0;"};
     }
 
-    private static getTextHeadingsData(){
+    private static findTextHeadingsData(){
         //We're expecting 5 heading levels for a default stock obsidian vault. 
 
         for(let i = 1; i <= 5; i++){
             
             let newTextHeaderData: textHeadingData = this.defaultTextHeadingData();
-
-
-            let headingSize = getComputedStyle(document.body).getPropertyValue("--h"+i+"-size")
-            if(headingSize == "" || headingSize == undefined)
-                newTextHeaderData.headingSize = DEFAULT_FONT_SIZE;
-            else{
-                headingSize = headingSize.replace("em", "");
-                headingSize = Math.round(parseFloat(headingSize) * parseFloat(DEFAULT_FONT_SIZE)).toString();
-
-                newTextHeaderData.headingSize = headingSize;
+            const textHeaderElement = document.querySelector('.cm-header-' + i) as HTMLElement;
+            if(!textHeaderElement){
+                this.textHeaders[i] = this.defaultTextHeadingData(); 
+                continue;
             }
+
+            let textHeadingStyle = window.getComputedStyle(textHeaderElement);
+            newTextHeaderData.headingSize = this.convertToRtfFontSize(textHeadingStyle.fontSize.replace("px",""));
             
-
-            //Stopped here, I don't know how we're going to handle getting the color of heading elements
-            //it makes me wonder/think that we'd probably need a setting to try and get any css data from a user 
-            //css and put it in that way, instead of trying to get it from the document.body and such...
-            //The only reason i was having a hard time with the color is because the color is set to custom css values..
-            //the size isn't...
-            //but of course realistically, the size could be changed as well with a custom css..
-            //so we would def need a system to handle custom user css anyways i think...
-
-            // const headingEl = getComputedStyle(document.body).getPropertyValue("--h"+i+"-color");
-            // console.log(headingEl);
             
+            let color = textHeadingStyle.color.replace(/[ ()rgba]/g, "");
+            color = this.checkForDarkThemeColors(color);
+            color = this.convertToRtfColor(color.split(","));
+            newTextHeaderData.headingColor = color;
 
-
+            this.textHeaders[i] = newTextHeaderData;
         }
 
     }
 
+    private static checkForDarkThemeColors(color: string): string{
+        //Stock obsidian dark theme has a color for headings that can be hard to read in a white background
+        //of an rtf. So we're setting it to black as default.
+
+        if(color == "218,218,218")
+            return "0,0,0";
+        else
+            return color;
+
+
+    }
 
 
     private static fontError(){
-        mdToRtfPlugin.newErrorNotice("Could not find a valid font.");
+        mdToRtfPlugin.newErrorNotice("Could not find a valid font.", "");
     }
     private static getObsidianVaultFont(): string{
         const editorEl = document.querySelector('.cm-content') as HTMLElement;
@@ -193,34 +215,47 @@ export default class RtfHeader{
         let fontSize = getComputedStyle(document.body).getPropertyValue("--font-text-size")
         if(fontSize === "" || fontSize === undefined) return DEFAULT_FONT_SIZE; 
 
-        let convertedSize: number = parseInt(fontSize) * 2;
-        return convertedSize.toString();
+        let convertedSize: string = this.convertToRtfFontSize(fontSize);
+        return convertedSize;
+
+    }
+
+    private static convertToRtfFontSize(fontSize: string): string{
+        
+      return "\\fs" + (Math.round(parseFloat(fontSize)*2)).toString();  
 
     }
 
 
 
-    private static getHighlightColor(): string{
-       
-        let color = getComputedStyle(document.body).getPropertyValue("--text-highlight-bg-rgb")
-        
-        if(color === "" || color === undefined){
-            mdToRtfPlugin.newErrorNotice("Couldn't find highlight color somehow.");
 
-             //RTF still needs a highlight color, so if program can't find it for some reason, using the default;
+    private static getHighlightColor(): string{
+
+        const highlightEl = document.querySelector('.cm-highlight') as HTMLElement;
+        let color;
+
+        if(!highlightEl){
+             //RTF still needs a highlight color, so if program can't find it for some reason, use the default.
             color = DEFAULT_HIGLIGHT_COLOR;
             return color;
         }
-        
-        color = color.replace(/[ ]/g, "");
+
+        color = window.getComputedStyle(highlightEl).backgroundColor;
+
+        if(color === "" || color === undefined){
+            color = DEFAULT_HIGLIGHT_COLOR;
+            return color;
+        }
+
+        color = color.replace(/[ ()rgba]/g, ""); 
         let rgbValue: string[] = color.split(",");
-        
+
         rgbValue = this.addHighlightOffset(rgbValue);
-        color = " ;\\red"+ rgbValue[0] + "\\green"+ rgbValue[1] + "\\blue"+ rgbValue[2] +";";
-         //Gets the highlight color of the vault from global varible.
+        color = this.convertToRtfColor(rgbValue);
+         //Gets the highlight color of the vault from global varible. (Which by default is an rgba,
+         //however, we just ignore the alpha by simply not using it here, cause RTF can't use alpha value.)
          //(It looks something like (255, 255, 255, 0.1), so program gets replaces any space characters with nothing. )
          //Splits the different color values, then gets styilized into proper RTF format.
-        
         return color;
     }
 
@@ -228,7 +263,7 @@ export default class RtfHeader{
         //Purpose of this method is that rtf doesn't have an alpha value
         //so this method is to try and emulate that by just adding an offset to make the text lighter.
 
-        let offset = 90; // This method's purpose is to make it LIGHTER not darker, so it is recommended to keep offset to a positive integer number.
+        let offset = 20; // This method's purpose is to make it LIGHTER not darker, so it is recommended to keep offset to a positive integer number.
         let offsettedHighlightColor: number[] = rawHighlightColor.map(Number);
 
         for(let i = 0; i < offsettedHighlightColor.length; i++){
@@ -244,11 +279,14 @@ export default class RtfHeader{
 
             element = Math.min(element + offset, 255); //If the element (aka, the color value) will be over 255 when the offset is applied. Set it to 255. 
             offsettedHighlightColor[i] = element;
-
         }
 
         return offsettedHighlightColor.map(String);
         
 
+    }
+
+    private static convertToRtfColor(color: string[]): string{
+        return " ;\\red"+ color[0] + "\\green"+ color[1] + "\\blue"+ color[2] +";"
     }
 }

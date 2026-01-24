@@ -80,7 +80,7 @@ export default class mdToRtfPlugin extends Plugin{
 			//Will assign the default folder path ( as the desktop, if we can find the path to the desktop )
 		}else{
 			this.folderPathSetting = Object.assign({}, UNDEFINED_FOLDERPATH_SETTING);
-			mdToRtfPlugin.newErrorNotice("Could not set a default directory path. Please manually set one to avoid errors!");
+			mdToRtfPlugin.newErrorNotice("Could not set a default directory path. Please manually set one to avoid errors!", "");
 			//Will assign undefined folder path setting to folder path setting if default (dekstop) directory could not be found.
 		}
 
@@ -102,7 +102,7 @@ export default class mdToRtfPlugin extends Plugin{
 			this.saveSettings();
 			return 0;
 		}else{
-			mdToRtfPlugin.newErrorNotice("Could not find 'FileSystemAdapter'");
+			mdToRtfPlugin.newErrorNotice("Could not find 'FileSystemAdapter'", "");
 			return -1;
 		}
 
@@ -116,7 +116,7 @@ export default class mdToRtfPlugin extends Plugin{
 			this.saveSettings();
 			return 0;
 		}else{
-			mdToRtfPlugin.newErrorNotice("Could not find the desktop! Please rename the desktop to 'Desktop' or change plugin setting to custom directory.");
+			mdToRtfPlugin.newErrorNotice("Could not find the desktop! Please rename the desktop to 'Desktop' or change plugin setting to custom directory.", "");
 			return -1;
 		}
 			
@@ -127,7 +127,7 @@ export default class mdToRtfPlugin extends Plugin{
 		if(fs.existsSync(directoryPath))
 			return 0;
 		else{
-			mdToRtfPlugin.newErrorNotice("Invalid custom directory path. Please set a valid path to a folder to avoid errors!");
+			mdToRtfPlugin.newErrorNotice("Invalid custom directory path. Please set a valid path to a folder to avoid errors!", "");
 			return -1;
 		}
 
@@ -144,7 +144,7 @@ export default class mdToRtfPlugin extends Plugin{
 			case 2:
 				return this.checkValidDirectoryPath(this.folderPathSetting.directoryPath);
 			default:
-				mdToRtfPlugin.newErrorNotice("Invalid option for folder path setting. ");
+				mdToRtfPlugin.newErrorNotice("Invalid option for folder path setting. ", "");
 				return -1;
 		}
 	}
@@ -159,7 +159,7 @@ export default class mdToRtfPlugin extends Plugin{
 		const adapter = this.app.vault.adapter;
 		if (adapter instanceof FileSystemAdapter) inputFilePath = adapter.getFullPath(file.path);
 		else {
-			mdToRtfPlugin.newErrorNotice("Could not find 'FileSystemAdapter'");
+			mdToRtfPlugin.newErrorNotice("Could not find 'FileSystemAdapter'", "");
 			return;
 		}
 
@@ -199,8 +199,12 @@ export default class mdToRtfPlugin extends Plugin{
 		return new Notice(this.pluginName + " " + text);
 	}
 
-	public static newErrorNotice(text: string): Notice{
-		return new Notice(this.pluginName + "⚠️" + text);
+	public static newErrorNotice(text: string, errorText: any): Notice{
+		//If there isn't an error to pass in, just set errorText argument to ""
+		if(errorText == "")
+			return new Notice(this.pluginName + "⚠️" + text);
+
+		return new Notice(this.pluginName + "⚠️" + text + " (" + errorText.toString() + ")");
 	}
 	
 }

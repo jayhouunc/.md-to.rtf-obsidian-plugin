@@ -3,6 +3,7 @@ import RtfHeader from "./rtf-header";
 import mdToRtfPlugin from "main";
 import * as fs from 'fs';
 import * as readLine from "readline";
+import Headings from "./headings";
 
 
 
@@ -22,7 +23,7 @@ export default class ConversionLogicHandeler{
             fs.writeFileSync(outputFilePath, RtfHeader.setRtfHeader() + "" + await this.setRtfContent(inputFilePath) + endFile, 'utf-8');
             mdToRtfPlugin.newNotice(`Successfully created RTF file at ${outputFilePath}`);
         }catch(error){
-            mdToRtfPlugin.newErrorNotice('Error writing RTF file:' + error);
+            mdToRtfPlugin.newErrorNotice('Error writing RTF file:', error);
         }
 
 
@@ -35,15 +36,14 @@ export default class ConversionLogicHandeler{
         let editedContent: string[] = [];
          //This is where the program stores every line from md file, into rtf format.
          //Each line is an element in an array.
-
-
+         
         const rl = readLine.createInterface({
             input: fs.createReadStream(inputFilePath), 
             crlfDelay: Infinity,   
         });
 
         const finalizedContent = new Promise<string>((resolve) => {
-            rl.on("line", (line) =>{;
+            rl.on("line", (line) =>{
                 editedContent.push(this.handleLine(line) + "\\line " + "\n"); 
                  //New line "\n" doesn't show up in rtf, but it does in text editors, so it's helpful for debugging.
             })
@@ -59,15 +59,15 @@ export default class ConversionLogicHandeler{
 
 
 
-
-
     public handleLine(currentLine: string): string{
         
         ConversionLogicHandeler.isEmptyLine = this.checkForEmptyLine(currentLine);
 
-        let finalEditedLine = currentLine;        
+        let finalEditedLine = currentLine; 
+        let heading:Headings = new Headings();       
+        finalEditedLine = heading.doHeadingsConversion(finalEditedLine);
         finalEditedLine = TextStyling.doTextStyling(finalEditedLine);
-
+        
       
         return finalEditedLine;
     }
