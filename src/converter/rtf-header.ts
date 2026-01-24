@@ -1,7 +1,4 @@
 import mdToRtfPlugin from "main";
-import conversionLogic from "conversionLogic";
-import * as fs from 'fs';
-import * as readLine from "readline";
 
 
 const DEFAULT_FONT:string = "Calibri";
@@ -11,54 +8,29 @@ const DEFAULT_FONT_SIZE = "32";
  //Meaning. If the font size is 20px, in the rtf it will need to be defined as 40.
  //So the actual default is half of the value put into the constant;
 
-export default class ToRTFConverter{
+
+interface textHeadingData{
+    headingSize: string,
+    headingColor: string,
+}
 
 
-    constructor(){}
 
-    public async convert(inputFilePath: string, outputFilePath: string): Promise<void>{
-        let endFile: string = "\n}";
-
-        try{
-            fs.writeFileSync(outputFilePath, this.setRtfHeader() + "" + await this.setRtfContent(inputFilePath) + endFile, 'utf-8');
-            mdToRtfPlugin.newNotice(`Successfully created RTF file at ${outputFilePath}`);
-        }catch(error){
-            mdToRtfPlugin.newErrorNotice('Error writing RTF file:' + error);
-        }
+export default class RtfHeader{
+     //Chose to get the header everytime a file is set to be converted instead of just one time at the start of plugin
+     //because user could change styles or data inbetween each conversion..
 
 
-    }
-
-    private async setRtfContent(inputFilePath: string): Promise<string>{
-
-        let editedContent: string[] = [];
-         //This is where the program stores every line from md file, into rtf format.
-         //Each line is an element in an array.
-
-        const rtfConversion: conversionLogic = new conversionLogic();
-
-        const rl = readLine.createInterface({
-            input: fs.createReadStream(inputFilePath), 
-            crlfDelay: Infinity,   
-        });
-
-        const finalizedContent = new Promise<string>((resolve) => {
-            rl.on("line", (line) =>{;
-                editedContent.push(rtfConversion.convertLine(line) + "\\line " + "\n"); 
-                 //New line "\n" doesn't show up in rtf, but it does in text editors, so it's helpful for debugging.
-            })
-
-            rl.on("close", () =>{
-                return resolve(editedContent.join(""));
-            })
-
-        }) 
-
-        return finalizedContent;
-    }
+    static textHeaders: textHeadingData[] = [];
+    static fontSize: string;
 
 
-    private setRtfHeader(): string{
+    public static setRtfHeader(): string{
+
+        this.fontSize = this.getFontSize();
+        this.getTextHeadingsData();
+
+
         let finishedHeader: string = 
          "{\\rtf1\\ansi\\ansicpg1252\\deff0\\nouicompat{\\fonttbl{\\f0\\fnil\\fcharset0 INSERT_FONT;}}\n" +
          "{\\colortblINSERT_HIGHLIGHT_COLOR}\n" +
@@ -67,16 +39,60 @@ export default class ToRTFConverter{
     
         finishedHeader = finishedHeader.replace("INSERT_FONT", this.getObsidianVaultFont());
         finishedHeader = finishedHeader.replace("INSERT_HIGHLIGHT_COLOR", this.getHighlightColor());
-        finishedHeader = finishedHeader.replace("INSERT_FONT_SIZE", this.getFontSize())
+        finishedHeader = finishedHeader.replace("INSERT_FONT_SIZE", this.fontSize)
 
         return finishedHeader;
     }
 
 
-    private fontError(){
+
+
+    private static defaultTextHeadingData(): textHeadingData{
+        return {headingSize: DEFAULT_FONT_SIZE, headingColor: ";\\red0\\green0\\blue0;"};
+    }
+
+    private static getTextHeadingsData(){
+        //We're expecting 5 heading levels for a default stock obsidian vault. 
+
+        for(let i = 1; i <= 5; i++){
+            
+            let newTextHeaderData: textHeadingData = this.defaultTextHeadingData();
+
+
+            let headingSize = getComputedStyle(document.body).getPropertyValue("--h"+i+"-size")
+            if(headingSize == "" || headingSize == undefined)
+                newTextHeaderData.headingSize = DEFAULT_FONT_SIZE;
+            else{
+                headingSize = headingSize.replace("em", "");
+                headingSize = Math.round(parseFloat(headingSize) * parseFloat(DEFAULT_FONT_SIZE)).toString();
+
+                newTextHeaderData.headingSize = headingSize;
+            }
+            
+
+            //Stopped here, I don't know how we're going to handle getting the color of heading elements
+            //it makes me wonder/think that we'd probably need a setting to try and get any css data from a user 
+            //css and put it in that way, instead of trying to get it from the document.body and such...
+            //The only reason i was having a hard time with the color is because the color is set to custom css values..
+            //the size isn't...
+            //but of course realistically, the size could be changed as well with a custom css..
+            //so we would def need a system to handle custom user css anyways i think...
+
+            // const headingEl = getComputedStyle(document.body).getPropertyValue("--h"+i+"-color");
+            // console.log(headingEl);
+            
+
+
+        }
+
+    }
+
+
+
+    private static fontError(){
         mdToRtfPlugin.newErrorNotice("Could not find a valid font.");
     }
-    private getObsidianVaultFont(): string{
+    private static getObsidianVaultFont(): string{
         const editorEl = document.querySelector('.cm-content') as HTMLElement;
         if(editorEl){
             const computedStyle = window.getComputedStyle(editorEl);
@@ -88,7 +104,7 @@ export default class ToRTFConverter{
             return DEFAULT_FONT;
         }
     } 
-    private deduceToSingularFont(fontFamilyString: string): string{
+    private static deduceToSingularFont(fontFamilyString: string): string{
         /*
         This is needed because program is isolating the "font-family" attribute of ".cm-content"
         ("".cm-content" is the class used by obsidian on all text.)
@@ -119,7 +135,7 @@ export default class ToRTFConverter{
         else return correctFont;
         
     }
-    private cleanUpFont(font: string): string{
+    private static cleanUpFont(font: string): string{
         /*
         This is needed to clean up the font even further, as the exact element from the previous
         array could look like: "  font-name here". It needs to look like "font-name here"
@@ -173,7 +189,7 @@ export default class ToRTFConverter{
          //Finally, returns the properly cleaned up font. :)
     }
 
-    private getFontSize(): string{
+    private static getFontSize(): string{
         let fontSize = getComputedStyle(document.body).getPropertyValue("--font-text-size")
         if(fontSize === "" || fontSize === undefined) return DEFAULT_FONT_SIZE; 
 
@@ -184,7 +200,7 @@ export default class ToRTFConverter{
 
 
 
-    private getHighlightColor(): string{
+    private static getHighlightColor(): string{
        
         let color = getComputedStyle(document.body).getPropertyValue("--text-highlight-bg-rgb")
         
@@ -208,7 +224,7 @@ export default class ToRTFConverter{
         return color;
     }
 
-    private addHighlightOffset(rawHighlightColor: string[]): string[] {
+    private static addHighlightOffset(rawHighlightColor: string[]): string[] {
         //Purpose of this method is that rtf doesn't have an alpha value
         //so this method is to try and emulate that by just adding an offset to make the text lighter.
 
@@ -235,5 +251,4 @@ export default class ToRTFConverter{
         
 
     }
-
 }

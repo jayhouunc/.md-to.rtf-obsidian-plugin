@@ -1,7 +1,9 @@
+import ConversionLogicHandeler from "./conversion-logic-handeler";
 
-export default class conversionLogic{
+export default class TextStyling{
 
-    public stylingStates: Record<string, boolean> = {
+
+     public static stylingStates: Record<string, boolean> = {
         "isInBoldItalicBlock": false,
         "isInHighlightBlock": false,
         "isInBoldBlock": false,
@@ -9,46 +11,37 @@ export default class conversionLogic{
         "isInItalicBlock": false,
     }
 
-    isEmptyLine: boolean = false;
 
     constructor(){}
 
-    public convertLine(currentLine: string): string{
-        this.isEmptyLine = this.checkForEmptyLine(currentLine);
-
-        let finalEditedLine = currentLine;
+    public static doTextStyling(lineToEdit: string): string{
         
+        let styledLine = lineToEdit;
 
-        //Text styling block
+
         /*
-        * "findTextStyling()" internally resolves overlapping syntax (e.g. *, **, ***)
+        * "findATextStyling()" internally resolves overlapping syntax (e.g. *, **, ***)
         * by evaluating rules in a fixed highest-to-lowest precedence order.
         */
-        finalEditedLine = this.findTextStyling(finalEditedLine, "*", 3, "\\b \\i", "\\i0 \\b0", "isInBoldItalicBlock");
-        finalEditedLine = this.findTextStyling(finalEditedLine, "_", 3, "\\b \\i", "\\i0 \\b0", "isInBoldItalicBlock");
-        finalEditedLine = this.findTextStyling(finalEditedLine, "=", 2 , "\\highlight1", "\\highlight0", "isInHighlightBlock")
-        finalEditedLine = this.findTextStyling(finalEditedLine, "_", 2 ,"\\b", "\\b0", "isInBoldBlock")
-        finalEditedLine = this.findTextStyling(finalEditedLine, "*", 2 ,"\\b", "\\b0", "isInBoldBlock")
-        finalEditedLine = this.findTextStyling(finalEditedLine, "~", 2 ,"\\strike", "\\strike0", "isInStrikeoutBlock")
-        finalEditedLine = this.findTextStyling(finalEditedLine, "*", 1 ,"\\i", "\\i0", "isInItalicBlock")
-        finalEditedLine = this.findTextStyling(finalEditedLine, "_", 1 ,"\\i", "\\i0", "isInItalicBlock")
-         //This essentially works like a chain. Program will find the text styling in the currentline (which is set to "finalEditedLine" at start of method)
-         //and whatever is returned by the method, it will set it to the finalEditedLine. 
+        styledLine = this.findATextStyling(styledLine, "*", 3, "\\b \\i", "\\i0 \\b0", "isInBoldItalicBlock");
+        styledLine = this.findATextStyling(styledLine, "_", 3, "\\b \\i", "\\i0 \\b0", "isInBoldItalicBlock");
+        styledLine = this.findATextStyling(styledLine, "=", 2 , "\\highlight1", "\\highlight0", "isInHighlightBlock")
+        styledLine = this.findATextStyling(styledLine, "_", 2 ,"\\b", "\\b0", "isInBoldBlock")
+        styledLine = this.findATextStyling(styledLine, "*", 2 ,"\\b", "\\b0", "isInBoldBlock")
+        styledLine = this.findATextStyling(styledLine, "~", 2 ,"\\strike", "\\strike0", "isInStrikeoutBlock")
+        styledLine = this.findATextStyling(styledLine, "*", 1 ,"\\i", "\\i0", "isInItalicBlock")
+        styledLine = this.findATextStyling(styledLine, "_", 1 ,"\\i", "\\i0", "isInItalicBlock")
+         //This essentially works like a chain. Program will find the text styling in the currentline given (which is set to "styledLine" at start of method)
+         //and whatever is returned by the method, it will set it to the styledLine. 
          //Takes a line. Edits it according to found text styling. Puts it back out to its self (as an update). Moves to next text styling and repeats.
 
+         return styledLine;
+    }
+
+
+
     
-
-        return finalEditedLine;
-    }
-
-
-    private checkForEmptyLine(currentLine: string): boolean{
-        return /^[ ]*$/.test(currentLine)
-    }
-
-
-
-    private findTextStyling(currentLine: string, obsidianSytlingChar: string, stylingCharCount: number, entryStyle: string, exitStyle: string, stylingState: string): string{
+    private static findATextStyling(currentLine: string, obsidianSytlingChar: string, stylingCharCount: number, entryStyle: string, exitStyle: string, stylingState: string): string{
         
         /*
         A lot of layered logic here and context is needed.
@@ -61,9 +54,9 @@ export default class conversionLogic{
         
         So lets break down the method call and perameters with an example:
         Arguements:
-        [findTextStyling(currentLine: string, obsidianSytlingChar: string, stylingCharCount: number, entryStyle: string, exitStyle: string, stylingState: string)]
+        [findATextStyling(currentLine: string, obsidianSytlingChar: string, stylingCharCount: number, entryStyle: string, exitStyle: string, stylingState: string)]
         Actual perameters:
-        [this.findTextStyling(finalEditedLine, "*", 2 ,"\\b", "\\b0", "isInBoldBlock")]
+        [this.findATextStyling(finalEditedLine, "*", 2 ,"\\b", "\\b0", "isInBoldBlock")]
 
         currentLine = finalEditedLine (We explained this above.)
         obsidianStylingChar = "*" (This is the exact character obsidian uses to style, and it will be in a note if someone wants to style something.
@@ -91,7 +84,7 @@ export default class conversionLogic{
             throw new Error(`${stylingState} not found`);
         }
 
-        if(this.isEmptyLine && this.stylingStates[stylingState]){
+        if(ConversionLogicHandeler.isEmptyLine && this.stylingStates[stylingState]){
             let newLineResetString = "";
             newLineResetString += currentLine + exitStyle + " "; 
             this.stylingStates[stylingState] = false;
@@ -142,9 +135,9 @@ export default class conversionLogic{
 
     }
 
-    private checkCharacters(tempString: string[], startingIndex: number, obsidianStylingChar: string, stylingCharCount: number): boolean{
+    private static checkCharacters(tempString: string[], startingIndex: number, obsidianStylingChar: string, stylingCharCount: number): boolean{
         /*
-        This method, is called in a for loop in findTextStyling() method. It's called on every single character on the line.
+        This method, is called in a for loop in findATextStyling() method. It's called on every single character on the line.
         This is needed so we can check the characters ahead to see if it will indicate a style, since obsidian uses multiple characters for a style at times.
         (***This is bold italic for instance***)
         (==This is highlighting==)
@@ -181,7 +174,7 @@ export default class conversionLogic{
 
     }
 
-    private applyStyle(tempString: string[], startingIndex: number, style: string, stylingCharCount: number): string[]{
+    private static applyStyle(tempString: string[], startingIndex: number, style: string, stylingCharCount: number): string[]{
         /*
         ApplyStyle just applies the style. Meaning it converts the obsidian styling characters found in the line, into rtf
         by replacing those characters with the rtf version of the style.
@@ -209,6 +202,7 @@ export default class conversionLogic{
         return finalString;
 
     }
+
 
 
 }

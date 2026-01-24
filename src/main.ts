@@ -1,9 +1,9 @@
 import {FileSystemAdapter, App, Plugin, TFile, Menu, Notice} from 'obsidian'
 import { mdToRtfPluginSettings } from './settings';
-import ToRTFConverter from './converter'
 import * as fs from 'fs';
 import * as os from "os";
 import * as path from "path";
+import ConversionLogicHandeler from 'converter/conversion-logic-handeler';
 
 interface folderPathSetting{
 	directoryPath: string;
@@ -32,7 +32,6 @@ export default class mdToRtfPlugin extends Plugin{
 	public static pluginName: string = "(.MD to.RTF Converter) ";
 	currentClickedFileDirectory: string;
 	
-	converter: ToRTFConverter = new ToRTFConverter();
 	
 	async onload(){
 		this.loadSettings();
@@ -133,6 +132,7 @@ export default class mdToRtfPlugin extends Plugin{
 		}
 
 	}
+	
 	private findAccurateDirectoryBasedOnValue(key: number, file: TFile): number{
 
 
@@ -163,9 +163,11 @@ export default class mdToRtfPlugin extends Plugin{
 			return;
 		}
 
-		const outputFilePath: string = path.join(this.folderPathSetting.directoryPath, file.basename + ".rtf");
+		
 
-		this.converter.convert(inputFilePath, outputFilePath);
+		const outputFilePath: string = path.join(this.folderPathSetting.directoryPath, file.basename + ".rtf");
+		const conversionHandeler: ConversionLogicHandeler = new ConversionLogicHandeler();
+		conversionHandeler.convert(inputFilePath, outputFilePath);
 		
 
 	}
