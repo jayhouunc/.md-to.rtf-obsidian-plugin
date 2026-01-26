@@ -8,6 +8,9 @@ const DEFAULT_FONT_SIZE = "\\fs32";
  //Meaning. If the font size is 20px, in the rtf it will need to be defined as 40.
  //So the actual default is half of the value put into the constant;
 
+const DEFAULT_OBSIDIAN_LIGHT_THEME_TEXT_COLOR = "rgb(34, 34, 34)";
+const DEFAULT_OBSIDIAN_DARK_THEME_TEXT_COLOR = "rgb(218, 218, 218)";
+
 
 
 interface textHeadingData{
@@ -22,15 +25,21 @@ export default class RtfHeader{
      //because user could change styles or data inbetween each conversion..
 
 
-    public static textHeaders: textHeadingData[] = []; 
-     // textHeaders[1] = Heading 1 data..
-     // textHeaders[2] = Heading 2 data..
+    
+    public static fontSize: string = ""
+    public static rawFontSize: string = "";
+    public static textHeadings: textHeadingData[] = []; 
+     // textHeadings[1] = Heading 1 data..
+     // textHeadings[2] = Heading 2 data..
      // etc...
-    public static fontSize: string = this.getFontSize();
+    public static isHighlightTextColor = false;
 
     public static setRtfHeader(): string{
 
+        this.fontSize = this.getFontSize();
+        this.rawFontSize = this.getObsidianFontSize();
         this.findTextHeadingsData();
+        
 
         let finishedHeader: string = 
          "{\\rtf1\\ansi\\ansicpg1252\\deff0\\nouicompat\n" +
@@ -42,19 +51,26 @@ export default class RtfHeader{
         finishedHeader = finishedHeader.replace("INSERT_FONT", this.getObsidianVaultFont());
         finishedHeader = finishedHeader.replace("INSERT_COLORS", this.setHeaderColors());
         finishedHeader = finishedHeader.replace("INSERT_DEFAULT_FONT_SIZE", this.fontSize);
+    
+
 
         return finishedHeader;
     }
 
 
-    private static setHeaderColors():string{
 
+    private static setHeaderColors():string{
+     //Header colors guide:
+     //1 (first element rtf starts with in the color table) = highlight color
+     //2 = highlight TEXT color
+     //3 - 7 = Headings 1 - 5 colors
         let finalColorString = "";
         //First going to set the highlight color
         finalColorString += this.getHighlightColor();
+        finalColorString += this.getHighlightTextColor();
 
         for(let i = 1; i <= 5; i++){
-            finalColorString += this.textHeaders[i]?.headingColor;
+            finalColorString += this.textHeadings[i]?.headingColor;
         }
 
         return finalColorString.replace(/; ;/g, ";"); 
@@ -64,36 +80,63 @@ export default class RtfHeader{
     }
 
 
-    public static getTextHeadingData(index: number): textHeadingData{
-        return this.textHeaders[index] ?? this.defaultTextHeadingData();
+
+    public static getATextHeadingData(index: number): textHeadingData{
+        return this.textHeadings[index] ?? this.defaultTextHeadingData();
     }
 
     public static defaultTextHeadingData(): textHeadingData{
-        return {headingSize: DEFAULT_FONT_SIZE, headingColor: ";\\red0\\green0\\blue0;"};
+        return {headingSize: DEFAULT_FONT_SIZE, headingColor: " ;\\red0\\green0\\blue0;"};
     }
+
+
+
+    private static probeForNewStyledElement(className: string): HTMLDivElement{
+         //Not my code originally. Modified it and used it for what I needed.
+         //We use this for ANY element we can't get a global varible on...
+        const probe = document.createElement("div");
+
+        probe.className = className;
+        probe.style.position = "absolute";
+        probe.style.visibility = "hidden";
+        probe.style.pointerEvents = "none";
+
+        return document.body.appendChild(probe);
+    }
+
+    private static deleteNewStyledElementProbe(probe: HTMLDivElement){
+        document.body.removeChild(probe);
+    }
+
+
+
+
 
     private static findTextHeadingsData(){
         //We're expecting 5 heading levels for a default stock obsidian vault. 
 
         for(let i = 1; i <= 5; i++){
             
-            let newTextHeaderData: textHeadingData = this.defaultTextHeadingData();
-            const textHeaderElement = document.querySelector('.cm-header-' + i) as HTMLElement;
-            if(!textHeaderElement){
-                this.textHeaders[i] = this.defaultTextHeadingData(); 
-                continue;
-            }
+            let newTextHeadingData: textHeadingData = this.defaultTextHeadingData();
+            
+            let textHeadingFontSize = getComputedStyle(document.body).getPropertyValue("--h"+i+"-size");
+            let adjustedFontSize = parseFloat(textHeadingFontSize) * parseFloat(this.rawFontSize);
+                //actual font size = em * normal font size in px
+            newTextHeadingData.headingSize = this.convertToRtfFontSize(adjustedFontSize.toString());
+            
 
-            let textHeadingStyle = window.getComputedStyle(textHeaderElement);
-            newTextHeaderData.headingSize = this.convertToRtfFontSize(textHeadingStyle.fontSize.replace("px",""));
             
-            
-            let color = textHeadingStyle.color.replace(/[ ()rgba]/g, "");
+            let textHeadingColorElement = this.probeForNewStyledElement("cm-header-"+i);
+            let color = getComputedStyle(textHeadingColorElement).color;
+            color = color.replace(/[ ()rgba]/g, "");
             color = this.checkForDarkThemeColors(color);
             color = this.convertToRtfColor(color.split(","));
-            newTextHeaderData.headingColor = color;
+            newTextHeadingData.headingColor = color;
+            //also check if when no style is applied if default regular colors (Expecting blacks and whites)
+            //are present in rtf header...
 
-            this.textHeaders[i] = newTextHeaderData;
+            this.textHeadings[i] = newTextHeadingData;
+            this.deleteNewStyledElementProbe(textHeadingColorElement);
         }
 
     }
@@ -220,6 +263,10 @@ export default class RtfHeader{
 
     }
 
+    private static getObsidianFontSize(): string{
+        return getComputedStyle(document.body).getPropertyValue("--font-text-size");
+    }
+
     private static convertToRtfFontSize(fontSize: string): string{
         
       return "\\fs" + (Math.round(parseFloat(fontSize)*2)).toString();  
@@ -231,18 +278,10 @@ export default class RtfHeader{
 
     private static getHighlightColor(): string{
 
-        const highlightEl = document.querySelector('.cm-highlight') as HTMLElement;
-        let color;
+        const highlightEl = this.probeForNewStyledElement("cm-highlight");
+        let color = window.getComputedStyle(highlightEl).backgroundColor;
 
-        if(!highlightEl){
-             //RTF still needs a highlight color, so if program can't find it for some reason, use the default.
-            color = DEFAULT_HIGLIGHT_COLOR;
-            return color;
-        }
-
-        color = window.getComputedStyle(highlightEl).backgroundColor;
-
-        if(color === "" || color === undefined){
+        if(color === "rgba(0, 0, 0, 0)" || color === undefined){
             color = DEFAULT_HIGLIGHT_COLOR;
             return color;
         }
@@ -288,5 +327,34 @@ export default class RtfHeader{
 
     private static convertToRtfColor(color: string[]): string{
         return " ;\\red"+ color[0] + "\\green"+ color[1] + "\\blue"+ color[2] +";"
+    }
+
+    private static getHighlightTextColor(): string{
+
+        //If there is a highlight text color used by a user, then we'll use that 
+        //if it can't find it, then we wont..
+        //we need to do it this way because ALL colors are needed to be defined in the header
+        //and we can't just leave it out if a color doesn't exist..
+        //so if it's default aka no defined highlight text color by user
+        //we'll set the highlight text color's data in the header to something arbitrary but signals that space
+        //won't be used (";\\redUNDEFINED\\greenUNDEFINED\\blueUNDEFINED;";)
+        //and then we'll set a boolean to false, to signify it in text-styling.ts to not add formatting to 
+        //use any color for text when in a highlight block..
+        //however, if there is a highlight text color
+        //of course we get the color, set it in the header, and set the boolean to true, signifying to text-styling.ts
+        //it can use it...
+
+        let highlightEl = this.probeForNewStyledElement("cm-highlight");
+        let hightlightTextColor = getComputedStyle(highlightEl).color;
+
+        if(hightlightTextColor == DEFAULT_OBSIDIAN_DARK_THEME_TEXT_COLOR || hightlightTextColor == DEFAULT_OBSIDIAN_LIGHT_THEME_TEXT_COLOR){
+            this.isHighlightTextColor = false;
+            return ";\\redUNDEFINED\\greenUNDEFINED\\blueUNDEFINED;";
+        }
+           
+
+        hightlightTextColor = hightlightTextColor.replace(/[ ()rgba]/g, "");
+        this.isHighlightTextColor = true;
+        return this.convertToRtfColor(hightlightTextColor.split(","));
     }
 }

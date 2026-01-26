@@ -53,8 +53,8 @@ export default class Headings{
     }
 
     private replacerString(): string{
-        return  RtfHeader.getTextHeadingData(this.headingNumber).headingSize + "\\cf" + (this.headingNumber + 1);
-         //(this.headingNumber + 1) Have to offset it by 1 cause highlighter color is 1 in the color table..
+        return RtfHeader.getATextHeadingData(this.headingNumber).headingSize + "\\cf" + (this.headingNumber + 2);
+         //(this.headingNumber + 2) Have to offset it by 2 cause highlighter color is 1 and highlight text color is 2 in the color table..
     }
 
 

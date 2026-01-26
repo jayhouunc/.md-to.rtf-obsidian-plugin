@@ -1,9 +1,10 @@
 import ConversionLogicHandeler from "./conversion-logic-handeler";
+import RtfHeader from "./rtf-header";
 
 export default class TextStyling{
 
 
-     public static stylingStates: Record<string, boolean> = {
+    public static stylingStates: Record<string, boolean> = {
         "isInBoldItalicBlock": false,
         "isInHighlightBlock": false,
         "isInBoldBlock": false,
@@ -11,12 +12,15 @@ export default class TextStyling{
         "isInItalicBlock": false,
     }
 
+    private static highlightEntry: string = "";
+    private static highlightExit: string = "";
 
     constructor(){}
 
     public static doTextStyling(lineToEdit: string): string{
         
         let styledLine = lineToEdit;
+        this.setHighlightEntryandExit();
 
 
         /*
@@ -25,7 +29,7 @@ export default class TextStyling{
         */
         styledLine = this.findATextStyling(styledLine, "*", 3, "\\b \\i", "\\i0 \\b0", "isInBoldItalicBlock");
         styledLine = this.findATextStyling(styledLine, "_", 3, "\\b \\i", "\\i0 \\b0", "isInBoldItalicBlock");
-        styledLine = this.findATextStyling(styledLine, "=", 2 , "\\highlight1", "\\highlight0", "isInHighlightBlock")
+        styledLine = this.findATextStyling(styledLine, "=", 2 , this.highlightEntry, this.highlightExit, "isInHighlightBlock")
         styledLine = this.findATextStyling(styledLine, "_", 2 ,"\\b", "\\b0", "isInBoldBlock")
         styledLine = this.findATextStyling(styledLine, "*", 2 ,"\\b", "\\b0", "isInBoldBlock")
         styledLine = this.findATextStyling(styledLine, "~", 2 ,"\\strike", "\\strike0", "isInStrikeoutBlock")
@@ -38,7 +42,15 @@ export default class TextStyling{
          return styledLine;
     }
 
-
+    private static setHighlightEntryandExit(){
+        if(RtfHeader.isHighlightTextColor){
+            this.highlightEntry = "\\highlight1\\cf2";
+            this.highlightExit = "\\cf0\\highlight0"
+        }else{
+            this.highlightEntry = "\\highlight1";
+            this.highlightExit = "\\highlight0";
+        }
+    }
 
     
     private static findATextStyling(currentLine: string, obsidianSytlingChar: string, stylingCharCount: number, entryStyle: string, exitStyle: string, stylingState: string): string{
