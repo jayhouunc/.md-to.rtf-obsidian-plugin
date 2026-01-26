@@ -10,14 +10,14 @@ is reached in obsidian..
 
 import RtfHeader from "./rtf-header";
 
-export default class Headings{
+export default class TextHeadings{
 
 
     constructor(){}
 
     headingNumber: number = 0;
 
-    public  doHeadingsConversion(lineToEdit: string): string{
+    public  doTextHeadingsConversion(lineToEdit: string): string{
 
         if(lineToEdit.startsWith("#")){
             this.findHeadingNumber(lineToEdit);

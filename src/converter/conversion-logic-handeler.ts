@@ -3,7 +3,8 @@ import RtfHeader from "./rtf-header";
 import mdToRtfPlugin from "main";
 import * as fs from 'fs';
 import * as readLine from "readline";
-import Headings from "./headings";
+import TextHeadings from "./text-headings";
+import TaskStyling from "./task-styling";
 
 
 
@@ -64,9 +65,11 @@ export default class ConversionLogicHandeler{
         ConversionLogicHandeler.isEmptyLine = this.checkForEmptyLine(currentLine);
 
         let finalEditedLine = currentLine; 
-        let heading:Headings = new Headings();       
-        finalEditedLine = heading.doHeadingsConversion(finalEditedLine);
+        let textHeadings:TextHeadings = new TextHeadings();       
+        finalEditedLine = TaskStyling.doTasklistStylings(finalEditedLine);
+        finalEditedLine = textHeadings.doTextHeadingsConversion(finalEditedLine);
         finalEditedLine = TextStyling.doTextStyling(finalEditedLine);
+        
         
       
         return finalEditedLine;
