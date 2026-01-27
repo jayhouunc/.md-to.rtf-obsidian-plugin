@@ -64,6 +64,7 @@ export default class RtfHeader{
      //1 (first element rtf starts with in the color table) = highlight color
      //2 = highlight TEXT color
      //3 - 7 = Headings 1 - 5 colors
+     //8 = bold text color
         let finalColorString = "";
         //First going to set the highlight color
         finalColorString += this.getHighlightColor();
@@ -91,12 +92,11 @@ export default class RtfHeader{
 
 
 
-    private static probeForNewStyledElement(className: string): HTMLDivElement{
+    private static probeForNewStyledElement(elementName: string): HTMLElement{
          //Not my code originally. Modified it and used it for what I needed.
          //We use this for ANY element we can't get a global varible on...
-        const probe = document.createElement("div");
+        const probe = document.createElement(elementName);
 
-        probe.className = className;
         probe.style.position = "absolute";
         probe.style.visibility = "hidden";
         probe.style.pointerEvents = "none";
@@ -104,8 +104,8 @@ export default class RtfHeader{
         return document.body.appendChild(probe);
     }
 
-    private static deleteNewStyledElementProbe(probe: HTMLDivElement){
-        document.body.removeChild(probe);
+    private static deleteNewStyledElementProbe(probe: HTMLElement){
+        probe.remove();
     }
 
 
@@ -126,7 +126,7 @@ export default class RtfHeader{
             
 
             
-            let textHeadingColorElement = this.probeForNewStyledElement("cm-header-"+i);
+            let textHeadingColorElement = this.probeForNewStyledElement("h"+i);
             let color = getComputedStyle(textHeadingColorElement).color;
             color = color.replace(/[ ()rgba]/g, "");
             color = this.checkForDarkThemeColors(color);
@@ -278,11 +278,12 @@ export default class RtfHeader{
 
     private static getHighlightColor(): string{
 
-        const highlightEl = this.probeForNewStyledElement("cm-highlight");
+        const highlightEl = this.probeForNewStyledElement("mark");
         let color = window.getComputedStyle(highlightEl).backgroundColor;
 
         if(color === "rgba(0, 0, 0, 0)" || color === undefined){
             color = DEFAULT_HIGLIGHT_COLOR;
+            this.deleteNewStyledElementProbe(highlightEl);
             return color;
         }
 
@@ -295,6 +296,7 @@ export default class RtfHeader{
          //however, we just ignore the alpha by simply not using it here, cause RTF can't use alpha value.)
          //(It looks something like (255, 255, 255, 0.1), so program gets replaces any space characters with nothing. )
          //Splits the different color values, then gets styilized into proper RTF format.
+        this.deleteNewStyledElementProbe(highlightEl);
         return color;
     }
 
@@ -344,7 +346,7 @@ export default class RtfHeader{
         //of course we get the color, set it in the header, and set the boolean to true, signifying to text-styling.ts
         //it can use it...
 
-        let highlightEl = this.probeForNewStyledElement("cm-highlight");
+        let highlightEl = this.probeForNewStyledElement("mark");
         let hightlightTextColor = getComputedStyle(highlightEl).color;
 
         if(hightlightTextColor == DEFAULT_OBSIDIAN_DARK_THEME_TEXT_COLOR || hightlightTextColor == DEFAULT_OBSIDIAN_LIGHT_THEME_TEXT_COLOR){
@@ -355,6 +357,8 @@ export default class RtfHeader{
 
         hightlightTextColor = hightlightTextColor.replace(/[ ()rgba]/g, "");
         this.isHighlightTextColor = true;
+        this.deleteNewStyledElementProbe(highlightEl);
         return this.convertToRtfColor(hightlightTextColor.split(","));
     }
+
 }

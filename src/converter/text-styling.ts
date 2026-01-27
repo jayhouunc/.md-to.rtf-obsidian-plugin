@@ -20,8 +20,8 @@ export default class TextStyling{
     public static doTextStyling(lineToEdit: string): string{
         
         let styledLine = lineToEdit;
-        this.setHighlightEntryandExit();
-
+        this.setHighlightEntryAndExit();
+        this.setBoldEntryAndExit();
 
         /*
         * "findATextStyling()" internally resolves overlapping syntax (e.g. *, **, ***)
@@ -42,7 +42,11 @@ export default class TextStyling{
          return styledLine;
     }
 
-    private static setHighlightEntryandExit(){
+    private static setBoldEntryAndExit(){
+
+    }
+
+    private static setHighlightEntryAndExit(){
         if(RtfHeader.isHighlightTextColor){
             this.highlightEntry = "\\highlight1\\cf2";
             this.highlightExit = "\\cf0\\highlight0"
@@ -117,9 +121,11 @@ export default class TextStyling{
                  //If there is no character in front of current character (AKA end of the array which is the current line.) 
                  //AND if the program needed to check ahead because of styling that takes more than 1 character Stop the loop.
                  //This prevents the program from breaking out of the loop prematurely if it only needs to check for 1 character stylings.
-
-
-            let canStyle: boolean = this.checkCharacters(tempstring, i, obsidianSytlingChar, stylingCharCount);
+            
+            if(tempstring[i] != obsidianSytlingChar)
+                continue;
+    
+            let canStyle: boolean = this.checkCharacters(tempstring, i, obsidianSytlingChar, stylingCharCount, stylingState);
              //Explained in method. Essentially runs a check on the characters to see if any of them indicate the style that any copy of this method
              //is set to is being applied.
              //If it finds a style (true), then code will execute applying the style. Won't if it couldn't find one. (false)
@@ -147,9 +153,55 @@ export default class TextStyling{
 
     }
 
-    private static checkCharacters(tempString: string[], startingIndex: number, obsidianStylingChar: string, stylingCharCount: number): boolean{
+    private static hasPassedStylingEntryRules(tempString: string[], startingIndex: number, obsidianStylingChar:string ):boolean{
+
         /*
-        This method, is called in a for loop in findATextStyling() method. It's called on every single character on the line.
+        Obsidian's styling rules for ENTERING a style block are as follows:
+        (The | represents a styling character) (F = won't be styled, T = will be styled)
+        (anything but "" and " ") | " " = F
+        (anything but "" and " ") | (any symbol) = F
+        ---
+        (styling character) | "" = F
+        (styling character) | " " = F
+        Everything else will pass the styling entry rules.
+        */
+
+        let beforeChar = tempString[startingIndex-1] ?? "";
+        let afterChar = tempString[startingIndex+1] ?? "";
+
+        if((beforeChar != " " || !beforeChar) && afterChar == " ")
+            return false;
+        if((beforeChar != " " || !beforeChar) && !(/^[A-Za-z0-9]$/.test(afterChar))) 
+            return false;
+            //returns true if found a number or letter, false if something else. So we flipped it for that "something else" which will be any symbol..
+        
+        if(beforeChar == obsidianStylingChar && afterChar == "")
+            return false;
+        if(beforeChar == obsidianStylingChar && afterChar == " ")
+            return false;
+
+
+        return true;
+    }
+
+    private static hasPassedStylingExitRules(tempString: string[], startingIndex: number, obsidianStylingChar:string ): boolean{
+        let afterChar = tempString[startingIndex+1] ?? "";
+        
+        if(afterChar == obsidianStylingChar)
+            return false;
+
+        if(afterChar == " " || /^[A-Za-z0-9]$/.test(afterChar))
+            return false;
+
+        return true;
+    }
+
+
+
+    private static checkCharacters(tempString: string[], startingIndex: number, obsidianStylingChar: string, stylingCharCount: number, stylingState: string): boolean{
+        /*
+        This method, is called in a for loop in findATextStyling() method. It's called on any character on the line
+        that is a styling character.
         This is needed so we can check the characters ahead to see if it will indicate a style, since obsidian uses multiple characters for a style at times.
         (***This is bold italic for instance***)
         (==This is highlighting==)
@@ -158,6 +210,23 @@ export default class TextStyling{
         Checks which characters it is looking for via "obsidianStylingChar"
         and how many are we checking for via "stylingCharCount"
         */ 
+
+
+
+        if(!this.stylingStates[stylingState] && !this.hasPassedStylingEntryRules(tempString, startingIndex, obsidianStylingChar))
+            return false;
+             //This is the check that will determine in the first place at the start 
+             //(if not already in a styling block) if program CAN style (AT ALL..) it or not
+             //We have to check for the "Styling rules" which are explained in the method..
+
+        if(this.stylingStates[stylingState] && !this.hasPassedStylingExitRules(tempString, startingIndex, obsidianStylingChar))
+             return false;
+             //Same thing but the exit rules are a little bit different
+             //and if we are in a styling block..
+
+
+
+
 
 
         if(stylingCharCount == 1){
