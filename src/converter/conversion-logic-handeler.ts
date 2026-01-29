@@ -1,10 +1,8 @@
-import TextStyling from "./text-styling";
 import RtfHeader from "./rtf-header";
 import mdToRtfPlugin from "main";
 import * as fs from 'fs';
 import * as readLine from "readline";
 import TextHeadings from "./text-headings";
-import TaskStyling from "./task-styling";
 
 
 
@@ -66,9 +64,7 @@ export default class ConversionLogicHandeler{
 
         let finalEditedLine = currentLine; 
         let textHeadings:TextHeadings = new TextHeadings();       
-        finalEditedLine = TaskStyling.doTasklistStylings(finalEditedLine);
         finalEditedLine = textHeadings.doTextHeadingsConversion(finalEditedLine);
-        finalEditedLine = TextStyling.doTextStyling(finalEditedLine);
         
         
       
