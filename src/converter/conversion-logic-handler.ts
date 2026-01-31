@@ -30,30 +30,19 @@ export default class ConversionLogicHandler{
 
     private async setRtfContent(inputFilePath: string): Promise<string>{
 
-        let editedContent: string[] = [];
-         //This is where the program stores every line from md file, into rtf format.
-         //Each line is an element in an array.
-         
         const rl = readLine.createInterface({
             input: fs.createReadStream(inputFilePath), 
             crlfDelay: Infinity,   
         });
 
-        const finalizedContent = new Promise<string>((resolve) => {
-            rl.on("line", (line) =>{
-                editedContent.push(this.handleLine(line) + "\\line " + "\n"); 
-                 //New line "\n" doesn't show up in rtf, but it does in text editors, so it's helpful for debugging.
-            })
+        const finalizedContent: string[] = [];
 
-            rl.on("close", () =>{
-                return resolve(editedContent.join(""));
-            })
+        for await (const line of rl){
+            finalizedContent.push(this.handleLine(line) + "\\line" + "\n");
+        }
 
-        }) 
-
-        return finalizedContent;
+        return finalizedContent.join("");
     }
-
 
 
     public handleLine(currentLine: string): string{
@@ -61,11 +50,13 @@ export default class ConversionLogicHandler{
         ConversionLogicHandler.isEmptyLine = this.checkForEmptyLine(currentLine);
 
         let finalEditedLine = currentLine; 
+
+        //Add new "modules" below.
+
         let textHeadings:TextHeadings = new TextHeadings();       
         finalEditedLine = textHeadings.doTextHeadingsConversion(finalEditedLine);
         
         
-      
         return finalEditedLine;
     }
 

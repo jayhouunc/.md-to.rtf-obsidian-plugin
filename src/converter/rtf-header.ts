@@ -4,10 +4,6 @@ import mdToRtfPlugin from "main";
 const DEFAULT_FONT = "Calibri";
 const DEFAULT_HIGLIGHT_COLOR = " ;\\red255\\green255\\blue0;";
 const DEFAULT_FONT_SIZE = "\\fs32";
- //Rtf for some reason renders the font size as 2x the actual size. 
- //Meaning. If the font size is 20px, in the rtf it will need to be defined as 40.
- //So the actual default is half of the value put into the constant;
-
 const DEFAULT_OBSIDIAN_LIGHT_THEME_TEXT_COLOR = "rgb(34, 34, 34)";
 const DEFAULT_OBSIDIAN_DARK_THEME_TEXT_COLOR = "rgb(218, 218, 218)";
 
@@ -21,13 +17,8 @@ interface textHeadingData{
 
 
 export default class RtfHeader{
-     //Chose to get the header everytime a file is set to be converted instead of just one time at the start of plugin
-     //because user could change styles or data inbetween each conversion..
-
-
-    
-    public static fontSize: string = ""
-    public static rawFontSize: string = "";
+    public static rtfFontSize: string = ""
+    public static obsidianFontSize: string = "";
     public static textHeadings: textHeadingData[] = []; 
      // textHeadings[1] = Heading 1 data..
      // textHeadings[2] = Heading 2 data..
@@ -36,8 +27,8 @@ export default class RtfHeader{
 
     public static setRtfHeader(): string{
 
-        this.fontSize = this.getFontSize();
-        this.rawFontSize = this.getObsidianFontSize();
+        this.rtfFontSize = this.getFontSize();
+        this.obsidianFontSize = this.getObsidianFontSize();
         this.findTextHeadingsData();
         
 
@@ -50,7 +41,7 @@ export default class RtfHeader{
     
         finishedHeader = finishedHeader.replace("INSERT_FONT", this.getObsidianVaultFont());
         finishedHeader = finishedHeader.replace("INSERT_COLORS", this.setHeaderColors());
-        finishedHeader = finishedHeader.replace("INSERT_DEFAULT_FONT_SIZE", this.fontSize);
+        finishedHeader = finishedHeader.replace("INSERT_DEFAULT_FONT_SIZE", this.rtfFontSize);
     
 
 
@@ -120,7 +111,7 @@ export default class RtfHeader{
             let newTextHeadingData: textHeadingData = this.defaultTextHeadingData();
             
             let textHeadingFontSize = getComputedStyle(document.body).getPropertyValue("--h"+i+"-size");
-            let adjustedFontSize = parseFloat(textHeadingFontSize) * parseFloat(this.rawFontSize);
+            let adjustedFontSize = parseFloat(textHeadingFontSize) * parseFloat(this.obsidianFontSize);
                 //actual font size = em * normal font size in px
             newTextHeadingData.headingSize = this.convertToRtfFontSize(adjustedFontSize.toString());
             
@@ -159,6 +150,7 @@ export default class RtfHeader{
     }
     private static getObsidianVaultFont(): string{
         const editorEl = document.querySelector('.cm-content') as HTMLElement;
+            //".cm-content" is the css class responsible for styling the main content of a markdown note file
         if(editorEl){
             const computedStyle = window.getComputedStyle(editorEl);
             const fontFamilyString = computedStyle.fontFamily;

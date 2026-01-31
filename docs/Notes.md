@@ -291,12 +291,12 @@ private createCustomDirectoryOption(){
  There will throw an error if it isn't a valid path.
 
 
-# converter/conversion-logic-handler.ts
+# converter/conversion-logic-handler.ts 
 
 This is the main file that handles all the conversion logic. 
 This is where the main meat of the plugin is. How it's built is by putting together all the different "modules" that handle every part of conversion.
 
-These "modules" *(more like different typescript files)* would handle one thing. 
+These "modules" *(more like different typescript files)* would handle one thing each.
 One takes care of text styling... One takes care of headings and how they're styled... One takes care of setting up the rtf file...
 
 The conversion-logic-handler is the central hub for it all to take place, and it is decisive point where conversion begins whenever the user actually clicks on a file to be converted to rtf.
@@ -319,23 +319,204 @@ public async convert(inputFilePath: string, outputFilePath: string){
 *Where it is called in main.ts*
 ```ts
 private async conversionOfFileToRTF(file: TFile){
-...
-...
-	let inputFilePath: string;
-	const adapter = this.app.vault.adapter;
-	
-	if (adapter instanceof FileSystemAdapter) inputFilePath = 
-	adapter.getFullPath(file.path);
-	else {
-		mdToRtfPlugin.newErrorNotice("Could not find 'FileSystemAdapter'", "");
-		return;
-	}
-	const outputFilePath: string = path.join(this.folderPathSetting.directoryPath, 
-	file.basename + ".rtf");
-
-	const conversionHandeler: ConversionLogicHandeler = new 
-	ConversionLogicHandeler();
+	...
+	...
 	conversionHandeler.convert(inputFilePath, outputFilePath);
 
 }
 ```
+↓
+
+I chose to break it up this way because RTF files have 3 distinct parts to be valid.
+1. A Header *(This is where all the data the RTF file will use is defined here. Things such as colors, fonts, etc..)*
+2. A body *(The actual readable content of the RTF file.)*
+3. An end *(Just the ending bracket after the content has been written to signal the end of the RTF file.)*
+
+The logic for determining the header is explained in-depth in the section "converter/rtf-header.ts".
+
+The logic for determining the rtf body is in the following execution flow.
+starting with the ".setRtfContent()" method...
+```ts
+private async setRtfContent(inputFilePath: string): Promise<string>{
+
+	const rl = readLine.createInterface({
+		input: fs.createReadStream(inputFilePath),
+		crlfDelay: Infinity,  
+	});
+	
+	const finalizedContent: string[] = [];
+	
+	for await (const line of rl){
+		finalizedContent.push(this.handleLine(line) + "\\line" + "\n");
+	}
+	
+	return finalizedContent.join("");
+```
+
+From the markdown file the user has clicked to be converted, the program is going to read it line by line and push the edited *(correctly formatted to rtf)* version of the line to the finalizedContent sequentially. 
+It adds to the end of each edited a "\line" control word. *(Makes it a new line in RTF)* 
+As well as an actual new line character. *(This makes it so that whenever the RTF file is read in a text editor, everything isn't on one singular line)*
+↓
+Lastly, how the line is edited all happens within the ".handeLine()" method.
+```ts
+public handleLine(currentLine: string): string{
+
+	ConversionLogicHandler.isEmptyLine = this.checkForEmptyLine(currentLine);
+
+	let finalEditedLine = currentLine;
+
+	//Add new "modules" below.
+
+	let textHeadings:TextHeadings = new TextHeadings();      
+	finalEditedLine = textHeadings.doTextHeadingsConversion(finalEditedLine);
+
+	return finalEditedLine;
+}
+```
+
+Every single line goes through here to be converted to proper rtf formatting, which is handled by different modules that edit the line, and return it back so that another module can edit it, and so on and so forth until the line has been converted.
+
+`ConversionLogicHandler.isEmptyLine = this.checkForEmptyLine(currentLine);`
+Most if not every module needs to know some data before doing their conversions. 
+Checking to see if the current line is an empty line, is one of them. 
+
+I found this to be the most efficient since how conversion-logic-handler is set up, is so that every module essentially is an extension of this central hub. 1 place where objective data is stored so every module can use it.
+
+How this is used practically is because some stylings *(e.g.. an italic styling or a bold styling..)* potentially can carry over into other lines, so if the line is empty, the program shouldn't style it.
+
+# Explanation of RTF headers
+Before explaining converter/rtf-header.ts. An explanation of RTF headers is needed.
+
+The header of an RTF file is at the very top of the file. How RTF works is everything it is going to use in the file, **is defined here.** 
+The font, the colors, the font size, formatting rules.. etc.
+It all starts here.
+
+Here is a basic header of an RTF file:
+```rtf
+{\rtf1\ansi\ansicpg1252\deff0\nouicompat
+{\fonttbl{\f0\fnil\fcharset0 Tahoma;}}
+{\colortbl ;\red255\green255\blue170;\red0\green0\blue0;\red255\green0\blue175;}
+{\*\generator .md-to-.rtf Converter plugin for obsidian!}\viewkind4\uc1
+\pard\f0\fs32
+```
+
+Everything in RTF lives inside of what's called groups.
+(These brackets "{ }" )
+The the starting bracket defines the group that is the entire document. Without this group defined, RTF wouldn't know what to look for and the file would not be valid. 
+It will be closed at the absolute end of the rtf file.
+
+*(This is the "}" defined and lightly referenced in conversion-logic-handler.ts)*
+```ts
+let endFile: string = "\n}";
+```
+*("\n" is just there to again make it easier to read in text editors)*
+
+RTF uses "control words" to determine functionality.
+They start with a "\", then a specific keyword, such as "b0" or "highlight".
+
+I will now be going over each control word defined in this header in order from left to right, top to bottom.
+- `\rtf1`
+	This defines the RTF version. It is required and is required at the start. Without it the file might not be valid. 
+	Version 1 is the standard and is used the most.
+- `\ansi`
+	Tells RTF to use ANSI encoding rules. Almost always present in RTF files.
+- `\ansicpg1252`
+	Ansi code page. 
+	This matters for non-unicode fallback characters. Tells RTF what to use in case this happens.
+	"1252" is the standard for Latin-1 (English + Western European)
+- `\deff0`
+	The default font. 
+	This is set to the first font in the font table, but if there isn't any. It will default to whatever is the default font set by an RTF reader. 
+- `\nouicompat`
+	No older word UI compatibility.
+	This tells RTF to render the file with modern rules and not previous outdated behavior.
+⠀
+⠀
+- ```rtf
+  {\fonttbl
+  {\f0\fnil\fcharset0 Tahoma;}
+	}
+  ```
+	This is the font table. *As defined by the control word "/fonttbl*
+	It defines all fonts used in the document and it has to be in it's own group. 
+	As well as every font defined, has to be in it's own group.
+	
+	`\f0` - Font index 0. It's defined here as such, but it is also referenced later in the same way with the same control word.
+	*(So if there were another font, it would be defined as "\f1" and used in the rtf body as "\f1")*
+	
+	`\fnil` - Is the font family. Here it is set to null *"nil"* . If you have the font family, use it, if not, nil is okay to use.
+	
+	`\fcharset0 Tahoma;` - Default character set *(which is referenced as "0")*. It will tell RTF that this font uses regular ANSI characters.
+	What comes direct after this, is the name of the font. Which in this case is 'Tahoma'. 
+	The semicolon ends the font definition.
+	
+	
+	So, whenever the RTF file uses Tahoma, it will be referencing this entry in the font table, by the control word "/f0"
+⠀
+⠀
+- ```rtf
+	{\colortbl 
+	 ;\red255\green255\blue170;
+	 \red0\green0\blue0;
+	 \red255\green0\blue175;
+	 \red255\green66\blue196;
+	 \red255\green109\blue209;
+	 \red255\green152\blue223;
+	 \red255\green195\blue236;
+	}
+  ```
+	This is the color table, it defines all colors to be used by the RTF file. 
+	Any color based control word, such as "/highlight" or "/cf" references this color table. 
+	
+	This is straight forward, every color starts and ends with a ; and uses control words to define RGB values.
+	
+	So an rgb(255,255,255) is defined as ;/red255/green255/blue255;
+⠀
+⠀
+- `\*\generator` 
+	" \ * " is the "optional" control word. This is not required for a valid RTF file. 
+	"\generator" just indicates what created the file. It is basic metadata. 
+- `\viewkind4`
+	Tells any rtf viewer what kind of view mode it will be using. 
+- `\uc1`
+	"After every "\uN", skip 1 fallback character"
+	Example: "\u9744?"
+	9744 = The unicode character
+	? = The fallback character *(in case it doesn't work)*
+	
+	If it works, \uc1 tells RTF to skip the fallback character "?"
+	if it doesn't, then of course the fallback character is inserted instead of nothing or some type of error potentially.
+	
+	This requires a bit of context to fully understand.
+	For starters, this is essentially something left over from early RTF. Earlier in that time RTF was regular 8 bit text, meaning no characters could be generated.
+	However, as time grew, unicodes became a thing, and RTF needed to be able to support it in case it ran into these unicode characters and didn't have a way to use them.
+	.
+	How unicodes are used in rtf: *(and a lot of places)*
+	`\u1234`
+	When rtf sees that, it will treat it as a control word, and if unicodes are supported, it will insert the unicode according to that code. 
+	Problem was, if for some reason it couldn't be understood by the rtf reader, it would ignore it or break the RTF file. 
+	Hence why after every \u control word, there needs to be a fallback character
+	`\u1234?`
+	
+	This is behavior is correctly signaled to be used when it is defined in the header by stating`\uc1`
+	
+- `\pard\f0\fs32`
+	Technically this is the start of the body, however I use it as part of the header because it sets up the defaults of the rtf anyways.
+	`\pard` = "Paragraph default." Meaning starts a default paragraph
+	`\f0` = Font 0. First font as defined in the font table.
+	`\fs32` = Font size. ==In RTF font size is divided by 2 because RTF uses text size in "half-points". So really this is stating the font size to be 16. ==
+	*(This is important to keep in mind to avoid confusion.)*
+
+
+RTF is not markup, it’s a **state machine**.
+Control words **change state**, text **inherits state**, groups **scope state**.
+This is why everything to be used in the file has to be defined in the header. 
+
+
+
+# converter/rtf-header.ts 
+
+This is the file that defines the RTF header.
+I chose to define header everytime a file is set to be converted instead of just one time at the start of plugin because user could change styles *(which directly determines the color table in the header)* or some kind of important data in-between each conversion..
+
+

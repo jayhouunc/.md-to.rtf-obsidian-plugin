@@ -48,7 +48,7 @@ export default class TextHeadings{
 
         lineToEdit = lineToEdit.replace(headingStyleCharacters, this.replacerString());
          
-        lineToEdit += " \\cf0" + RtfHeader.fontSize; //Adding this to the end to signal end of styling in rtf..
+        lineToEdit += " \\cf0" + RtfHeader.rtfFontSize; //Adding this to the end to signal end of styling in rtf..
         return lineToEdit;
     }
 
