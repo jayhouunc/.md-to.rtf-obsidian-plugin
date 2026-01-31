@@ -167,3 +167,175 @@ private async checkAndSetDefaultFolderPath(){
 # settings.ts 
 
 This is where the actual logic of the user settings for the plugin is deliberately handled, which main.ts will be using. 
+
+Where the logic starts is in the display() method inherited from "PluginSettingTab" obsidian provides.
+*(This is explained in-depth obsidian's official developer docs on how to make user settings. 
+All we really have to do here is just extend that class, and use everything from there to create our plugin's settings.)*
+↓
+```ts
+display(): void {
+	const {containerEl} = this;
+	containerEl.empty();
+	
+	this.createDirectoryPicker();
+}
+```
+
+The main settings for the md-to-rtf converter plugin is essentially just changing the directory where converted file is printed to.
+Hence the name and the method "createDirectoryPicker()"
+↓
+```ts
+private createDirectoryPicker(){
+	new Setting(this.containerEl)
+	 .setName('Destination of converted files')
+	 .setDesc('This is the folder where the notes you converted from markdown" 
+	 "(.md) to rich text format (.rtf) are stored.")
+	 .addDropdown((dropdown) =>
+		dropdown
+		.addOption('0', "The Desktop.")
+		.addOption('1', "Same place as original note.")
+		.addOption('2', "Other. (Custom directory. Please specify below.)")		
+		.setValue(this.savedValueHandling(
+		this.plugin.folderPathSetting.keyForAccurateDirectory.toString()))
+		 .onChange(async (value) =>{
+			this.pickedValueHandeling(value);
+		})
+	);
+}
+```
+The directory picker is a dropdown menu in the settings tab of the plugin in obsidian.
+Main thing to look at here is in the ".setValue()" method call and the ".onChange()" method call.
+
+.setValue() method is setting the value before any user change here. 
+Which should be either a default or a saved value which was loaded on initialization in "main.ts", and that requires a tiny bit of extra handling via the .savedValueHandling() method
+```ts
+private savedValueHandling(value: string): string{
+	if(value === '2')
+		this.createCustomDirectoryOption();
+
+	return value;
+}
+```
+Reason why this is here is to check if user has previously chosen the 3rd option *"Other. (Custom directory. Please specify below.)"*
+This allows program to both create the custom directory option if it's needed and then returning the previously saved user value to give to .setValue() method
+⠀
+⠀
+⠀
+.onChange() method is an event that takes the value the user picked from the dropdown, and puts it into .pickedValueHandling() method for handling. 
+↓
+```ts
+private async pickedValueHandling(value: string){
+	this.plugin.folderPathSetting.keyForAccurateDirectory = parseInt(value);
+	await this.plugin.saveSettings();
+
+	switch(value){
+		case '0':
+			this.deleteCustomDirectoryOption();
+			this.plugin.checkForValidDesktopBeforeSaving();
+			break;
+		case '1':
+			this.deleteCustomDirectoryOption();
+			this.plugin.folderPathSetting.directoryPath = "";
+			await this.plugin.saveSettings();
+			break;
+		case '2':
+			this.plugin.folderPathSetting.directoryPath = "";
+			this.createCustomDirectoryOption();
+			break;
+}
+```
+
+If user selects "0" *(The desktop)*
+Program will set it to the desktop but will check to see if it's valid and display an error to user if not.
+*(This method is also used when user clicks to try and convert note despite their desktop not being valid. It was efficient to use it here as well since they I needed the exact same thing, just in different points of the program)*
+
+If user selects "1" *(same directory as original note)*
+The directory path is set to "" because at the moment the program doesn't don't know which note it should be looking for.
+Therefore, the program will have to wait for the user to actually click on a note and press the ".md-to.rtf" button
+so it can find its directory... *(as was explained prior in main.ts section)*
+
+If user selects "2" *(Other. Please specify below)*
+The directory path is set to "" again by default and program goes to ".createCustomDirectoryOption()" method so user can choose their directory for the note to be put into.
+- *This is also why ".deleteCustomDirectoryOption()" method exists in every other option's case in the switch statement...*
+```ts
+	private deleteCustomDirectoryOption(): void{
+		this.containerEl.empty();
+		this.createDirectoryPicker();
+	}
+```
+- The purpose for this logic is because any time the 3rd option *"Other. (Custom directory. Please specify below.)"* is selected, a new option will appear under the "directory picker" option allowing them to input their custom directory.
+  However, the program shouldn't keep the custom directory option alive if user choses another option. So it will need to be rid of.
+  ⠀
+- How the program will get rid of it is by deleting the whole container element *(where all the options are stored)*, then re-create the "directory picker" option anytime another option other than the 3rd option is chosen by the user. 
+  ⠀ ⠀
+- Of course, if 3rd option is picked, then it will create the custom directory option...
+
+↓
+```ts
+private createCustomDirectoryOption(){
+	new Setting(this.containerEl)
+	.setName("Custom Directory: ")
+	.setDesc("Please write out FULL PATH (from top-level directory). NOT local!")
+	.addText(async (text) =>{
+		text
+		 .setPlaceholder("")
+		 .setValue(this.plugin.folderPathSetting.directoryPath)
+		 .onChange((value) =>{
+			this.plugin.folderPathSetting.directoryPath = value;
+			this.plugin.saveSettings();
+		 })
+	})
+}
+```
+ No matter what the user types it will be saved and program will be checking if what the user typed is a valid path in "main.ts" when user tries to convert a note.
+ There will throw an error if it isn't a valid path.
+
+
+# converter/conversion-logic-handler.ts
+
+This is the main file that handles all the conversion logic. 
+This is where the main meat of the plugin is. How it's built is by putting together all the different "modules" that handle every part of conversion.
+
+These "modules" *(more like different typescript files)* would handle one thing. 
+One takes care of text styling... One takes care of headings and how they're styled... One takes care of setting up the rtf file...
+
+The conversion-logic-handler is the central hub for it all to take place, and it is decisive point where conversion begins whenever the user actually clicks on a file to be converted to rtf.
+*Specifically, the .convert() method here in the conversion-logic-handler.*
+```ts 
+public async convert(inputFilePath: string, outputFilePath: string){
+
+	let endFile: string = "\n}";
+	try{
+		fs.writeFileSync(outputFilePath, RtfHeader.setRtfHeader() + "" 
+		+ await this.setRtfContent(inputFilePath) + endFile, 'utf-8');
+		  
+		mdToRtfPlugin.newNotice(`Successfully created RTF file
+		at ${outputFilePath}`);
+	}catch(error){
+		mdToRtfPlugin.newErrorNotice('Error writing RTF file:', error);
+	}
+}
+```
+*Where it is called in main.ts*
+```ts
+private async conversionOfFileToRTF(file: TFile){
+...
+...
+	let inputFilePath: string;
+	const adapter = this.app.vault.adapter;
+	
+	if (adapter instanceof FileSystemAdapter) inputFilePath = 
+	adapter.getFullPath(file.path);
+	else {
+		mdToRtfPlugin.newErrorNotice("Could not find 'FileSystemAdapter'", "");
+		return;
+	}
+	const outputFilePath: string = path.join(this.folderPathSetting.directoryPath, 
+	file.basename + ".rtf");
+
+	const conversionHandeler: ConversionLogicHandeler = new 
+	ConversionLogicHandeler();
+	conversionHandeler.convert(inputFilePath, outputFilePath);
+
+}
+```

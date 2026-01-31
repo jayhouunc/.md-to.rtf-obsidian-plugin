@@ -5,9 +5,7 @@ import * as readLine from "readline";
 import TextHeadings from "./text-headings";
 
 
-
-
-export default class ConversionLogicHandeler{
+export default class ConversionLogicHandler{
 
     public static isEmptyLine: boolean = false;
     
@@ -15,7 +13,7 @@ export default class ConversionLogicHandeler{
     constructor(){}
 
 
-    public async convert(inputFilePath: string, outputFilePath: string): Promise<void>{
+    public async convert(inputFilePath: string, outputFilePath: string){
         let endFile: string = "\n}";
 
         try{
@@ -60,7 +58,7 @@ export default class ConversionLogicHandeler{
 
     public handleLine(currentLine: string): string{
         
-        ConversionLogicHandeler.isEmptyLine = this.checkForEmptyLine(currentLine);
+        ConversionLogicHandler.isEmptyLine = this.checkForEmptyLine(currentLine);
 
         let finalEditedLine = currentLine; 
         let textHeadings:TextHeadings = new TextHeadings();       

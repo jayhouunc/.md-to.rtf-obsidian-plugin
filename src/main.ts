@@ -3,7 +3,7 @@ import { mdToRtfPluginSettings } from './settings';
 import * as fs from 'fs';
 import * as os from "os";
 import * as path from "path";
-import ConversionLogicHandeler from 'converter/conversion-logic-handeler';
+import ConversionLogicHandeler from 'converter/conversion-logic-handler';
 
 interface folderPathSetting{
 	directoryPath: string;
