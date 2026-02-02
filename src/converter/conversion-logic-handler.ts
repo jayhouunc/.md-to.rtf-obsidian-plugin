@@ -1,32 +1,47 @@
-import RtfHeader from "./rtf-header";
-import mdToRtfPlugin from "main";
+
+import GeneralNoteData from "./general-note-data";
+import Notices from "notices";
 import * as fs from 'fs';
 import * as readLine from "readline";
+
 import TextHeadings from "./text-headings";
+import RtfHeader from "./rtf-header";
+
+
 
 
 export default class ConversionLogicHandler{
 
     public static isEmptyLine: boolean = false;
+    public rtfHeader: RtfHeader;
+
+ 
+
     
-
-    constructor(){}
-
-
     public async convert(inputFilePath: string, outputFilePath: string){
+        
+        GeneralNoteData.findGeneralNoteData();
+        this.rtfHeader = new RtfHeader();
+        
+
         let endFile: string = "\n}";
 
         try{
-            fs.writeFileSync(outputFilePath, RtfHeader.setRtfHeader() + "" + await this.setRtfContent(inputFilePath) + endFile, 'utf-8');
-            mdToRtfPlugin.newNotice(`Successfully created RTF file at ${outputFilePath}`);
+            fs.writeFileSync(outputFilePath, this.rtfHeader.setRtfHeader() + await this.setRtfContent(inputFilePath) + endFile, 'utf-8');
+            Notices.newNotice(`Successfully created RTF file at ${outputFilePath}`);
         }catch(error){
-            mdToRtfPlugin.newErrorNotice('Error writing RTF file:', error);
+            Notices.newErrorNotice('Error writing RTF file:', error);
         }
 
 
     }
 
+    private checkForEmptyLine(currentLine: string): boolean{
+        return /^[ ]*$/.test(currentLine)
+    }
 
+
+    
 
     private async setRtfContent(inputFilePath: string): Promise<string>{
 
@@ -45,7 +60,7 @@ export default class ConversionLogicHandler{
     }
 
 
-    public handleLine(currentLine: string): string{
+    private handleLine(currentLine: string): string{
         
         ConversionLogicHandler.isEmptyLine = this.checkForEmptyLine(currentLine);
 
@@ -61,11 +76,8 @@ export default class ConversionLogicHandler{
     }
 
 
-    private checkForEmptyLine(currentLine: string): boolean{
-        return /^[ ]*$/.test(currentLine)
-    }
-
-
+    
+    
 
 
 }

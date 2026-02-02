@@ -1,9 +1,10 @@
-import {FileSystemAdapter, App, Plugin, TFile, Menu, Notice} from 'obsidian'
+import {FileSystemAdapter, App, Plugin, TFile, Menu} from 'obsidian'
 import { mdToRtfPluginSettings } from './settings';
 import * as fs from 'fs';
 import * as os from "os";
 import * as path from "path";
 import ConversionLogicHandeler from 'converter/conversion-logic-handler';
+import Notices from 'notices';
 
 interface folderPathSetting{
 	directoryPath: string;
@@ -28,7 +29,7 @@ export default class mdToRtfPlugin extends Plugin{
 	
 	folderPathSetting: folderPathSetting;
 
-	public static pluginName: string = "(.MD to.RTF Converter) ";
+	
 	
 	
 	async onload(){
@@ -60,7 +61,7 @@ export default class mdToRtfPlugin extends Plugin{
 			this.folderPathSetting = Object.assign({}, DEFAULT_FOLDERPATH_SETTING); 
 		}else{
 			this.folderPathSetting = Object.assign({}, UNDEFINED_FOLDERPATH_SETTING);
-			mdToRtfPlugin.newErrorNotice("Could not set a default directory path. Please manually set one to avoid errors!", "");
+			Notices.newErrorNotice("Could not set a default directory path. Please manually set one to avoid errors!", "");
 		}
 
 	}
@@ -78,7 +79,7 @@ export default class mdToRtfPlugin extends Plugin{
 			this.saveSettings();
 			return true;
 		}else{
-			mdToRtfPlugin.newErrorNotice("Could not find 'FileSystemAdapter'", "");
+			Notices.newErrorNotice("Could not find 'FileSystemAdapter'", "");
 			return false;
 		}
 
@@ -92,7 +93,7 @@ export default class mdToRtfPlugin extends Plugin{
 			this.saveSettings();
 			return true;
 		}else{
-			mdToRtfPlugin.newErrorNotice("Could not find the desktop! Please rename the desktop to 'Desktop' or change plugin setting to custom directory.", "");
+			Notices.newErrorNotice("Could not find the desktop! Please rename the desktop to 'Desktop' or change plugin setting to custom directory.", "");
 			return false;
 		}
 			
@@ -103,7 +104,7 @@ export default class mdToRtfPlugin extends Plugin{
 		if(fs.existsSync(directoryPath))
 			return true;
 		else{
-			mdToRtfPlugin.newErrorNotice("Invalid custom directory path. Please set a valid path to a folder to avoid errors!", "");
+			Notices.newErrorNotice("Invalid custom directory path. Please set a valid path to a folder to avoid errors!", "");
 			return false;
 		}
 
@@ -118,7 +119,7 @@ export default class mdToRtfPlugin extends Plugin{
 			case 2:
 				return this.checkValidDirectoryPath(this.folderPathSetting.directoryPath);
 			default:
-				mdToRtfPlugin.newErrorNotice("Invalid option for folder path setting. ", "");
+				Notices.newErrorNotice("Invalid option for folder path setting. ", "");
 				return false;
 		}
 	}
@@ -133,13 +134,15 @@ export default class mdToRtfPlugin extends Plugin{
 		const adapter = this.app.vault.adapter;
 		if (adapter instanceof FileSystemAdapter) inputFilePath = adapter.getFullPath(file.path);
 		else {
-			mdToRtfPlugin.newErrorNotice("Could not find 'FileSystemAdapter'", "");
+			Notices.newErrorNotice("Could not find 'FileSystemAdapter'", "");
 			return;
 		}
 
 		const outputFilePath: string = path.join(this.folderPathSetting.directoryPath, file.basename + ".rtf");
+		
 		const conversionHandeler: ConversionLogicHandeler = new ConversionLogicHandeler();
 		conversionHandeler.convert(inputFilePath, outputFilePath);
+
 		
 
 	}
@@ -159,24 +162,12 @@ export default class mdToRtfPlugin extends Plugin{
 			item.setTitle("⠀Convert note to RTF");
 			item.setIcon('file-symlink');
 			item.onClick(async () =>{
-				mdToRtfPlugin.newNotice("Converting note to RTF.....");
+				Notices.newNotice("Converting note to RTF.....");
 				this.conversionOfFileToRTF(file);
 			});
 		});
 	}
 
 
-	
-	public static newNotice(text: string): Notice{
-		return new Notice(this.pluginName + " " + text);
-	}
-
-	public static newErrorNotice(text: string, errorText: any): Notice{
-		//If there isn't an error to pass in, just set errorText argument to ""
-		if(errorText == "")
-			return new Notice(this.pluginName + "⚠️" + text);
-
-		return new Notice(this.pluginName + "⚠️" + text + " (" + errorText.toString() + ")");
-	}
 	
 }

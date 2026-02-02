@@ -8,16 +8,13 @@ is reached in obsidian..
 */
 
 
-import RtfHeader from "./rtf-header";
+import GeneralNoteData from "./general-note-data";
 
 export default class TextHeadings{
 
-
-    constructor(){}
-
     headingNumber: number = 0;
 
-    public  doTextHeadingsConversion(lineToEdit: string): string{
+    public doTextHeadingsConversion(lineToEdit: string): string{
 
         if(lineToEdit.startsWith("#")){
             this.findHeadingNumber(lineToEdit);
@@ -28,7 +25,7 @@ export default class TextHeadings{
 
     }
 
-    private  findHeadingNumber(lineToEdit: string){
+    private findHeadingNumber(lineToEdit: string){
 
         for(let i = 0; i < 5; i++){
             if(lineToEdit[i] == "#")
@@ -37,7 +34,7 @@ export default class TextHeadings{
 
     }
 
-    private  convertHeading(lineToEdit: string): string{
+    private convertHeading(lineToEdit: string): string{
 
         let headingStyleCharacters: string = "";
 
@@ -48,12 +45,12 @@ export default class TextHeadings{
 
         lineToEdit = lineToEdit.replace(headingStyleCharacters, this.replacerString());
          
-        lineToEdit += " \\cf0" + RtfHeader.rtfFontSize; //Adding this to the end to signal end of styling in rtf..
+        lineToEdit += " \\cf0" + GeneralNoteData.rtfFontSize; //Adding this to the end to signal end of styling in rtf..
         return lineToEdit;
     }
 
     private replacerString(): string{
-        return RtfHeader.getATextHeadingData(this.headingNumber).headingSize + "\\cf" + (this.headingNumber + 2);
+        return GeneralNoteData.getATextHeadingData(this.headingNumber).headingSize + "\\cf" + (this.headingNumber + 2);
          //(this.headingNumber + 2) Have to offset it by 2 cause highlighter color is 1 and highlight text color is 2 in the color table..
     }
 

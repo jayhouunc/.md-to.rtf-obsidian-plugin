@@ -87,7 +87,7 @@ Now how the program gets there is through a small execution flow.
 		menu.addItem((item) =>{
 			item.setTitle("⠀Convert note to RTF");
 			item.onClick(async () =>{
-				mdToRtfPlugin.newNotice("Converting note to RTF.....");
+				Notices.newNotice("Converting note to RTF.....");
 				this.conversionOfFileToRTF(file);
 			});
 		});
@@ -116,7 +116,7 @@ Now how the program gets there is through a small execution flow.
 				return this.checkValidDirectoryPath(
 				this.folderPathSetting.directoryPath);
 			default:
-				mdToRtfPlugin.newErrorNotice(
+				Notices.newErrorNotice(
 				"Invalid option for folder path setting. ", "");
 				return false;
 		}
@@ -156,7 +156,7 @@ private async checkAndSetDefaultFolderPath(){
 		//if program can find the path to the desktop.)
 	}else{
 		this.folderPathSetting = Object.assign({}, UNDEFINED_FOLDERPATH_SETTING);
-		mdToRtfPlugin.newErrorNotice("Could not set a default directory path." 
+		Notices.newErrorNotice("Could not set a default directory path." 
 		"Please manually set one to avoid errors!", "");
 		//Will assign undefined folder path setting to folder path setting if 
 		//default (dekstop) directory could not be found.
@@ -291,7 +291,7 @@ private createCustomDirectoryOption(){
  There will throw an error if it isn't a valid path.
 
 
-# converter/conversion-logic-handler.ts 
+# converter/conversion-logic-handler.ts (Main execution flow)
 
 This is the main file that handles all the conversion logic. 
 This is where the main meat of the plugin is. How it's built is by putting together all the different "modules" that handle every part of conversion.
@@ -299,20 +299,22 @@ This is where the main meat of the plugin is. How it's built is by putting toget
 These "modules" *(more like different typescript files)* would handle one thing each.
 One takes care of text styling... One takes care of headings and how they're styled... One takes care of setting up the rtf file...
 
-The conversion-logic-handler is the central hub for it all to take place, and it is decisive point where conversion begins whenever the user actually clicks on a file to be converted to rtf.
+The conversion-logic-handler is the central hub for it all to take place. The decisive point where conversion begins whenever the user actually clicks on a file to be converted to rtf.
 *Specifically, the .convert() method here in the conversion-logic-handler.*
 ```ts 
 public async convert(inputFilePath: string, outputFilePath: string){
-
+	...
+	...
+	...
 	let endFile: string = "\n}";
 	try{
 		fs.writeFileSync(outputFilePath, RtfHeader.setRtfHeader() + "" 
 		+ await this.setRtfContent(inputFilePath) + endFile, 'utf-8');
 		  
-		mdToRtfPlugin.newNotice(`Successfully created RTF file
+		Notices.newNotice(`Successfully created RTF file
 		at ${outputFilePath}`);
 	}catch(error){
-		mdToRtfPlugin.newErrorNotice('Error writing RTF file:', error);
+		Notices.newErrorNotice('Error writing RTF file:', error);
 	}
 }
 ```
@@ -360,32 +362,33 @@ As well as an actual new line character. *(This makes it so that whenever the RT
 Lastly, how the line is edited all happens within the ".handeLine()" method.
 ```ts
 public handleLine(currentLine: string): string{
-
+	
 	ConversionLogicHandler.isEmptyLine = this.checkForEmptyLine(currentLine);
-
+	
 	let finalEditedLine = currentLine;
-
+	
 	//Add new "modules" below.
-
+	
 	let textHeadings:TextHeadings = new TextHeadings();      
 	finalEditedLine = textHeadings.doTextHeadingsConversion(finalEditedLine);
-
+	
 	return finalEditedLine;
 }
 ```
 
 Every single line goes through here to be converted to proper rtf formatting, which is handled by different modules that edit the line, and return it back so that another module can edit it, and so on and so forth until the line has been converted.
 
+
+Also.
 `ConversionLogicHandler.isEmptyLine = this.checkForEmptyLine(currentLine);`
-Most if not every module needs to know some data before doing their conversions. 
-Checking to see if the current line is an empty line, is one of them. 
 
-I found this to be the most efficient since how conversion-logic-handler is set up, is so that every module essentially is an extension of this central hub. 1 place where objective data is stored so every module can use it.
+Why this particular logic for handling empty lines exists is because some stylings *(e.g.. an italic styling or a bold styling..)* potentially can carry over into other lines, so if the line is empty, the program shouldn't style it.
 
-How this is used practically is because some stylings *(e.g.. an italic styling or a bold styling..)* potentially can carry over into other lines, so if the line is empty, the program shouldn't style it.
+I found this to be the most efficient since conversion-logic-handler is cause every module essentially is an extension of this central hub.
+
 
 # Explanation of RTF headers
-Before explaining converter/rtf-header.ts. An explanation of RTF headers is needed.
+Before explaining converter/rtf-header.ts and converter/general-note-data.ts. An explanation of RTF headers is needed.
 
 The header of an RTF file is at the very top of the file. How RTF works is everything it is going to use in the file, **is defined here.** 
 The font, the colors, the font size, formatting rules.. etc.
@@ -514,9 +517,33 @@ This is why everything to be used in the file has to be defined in the header.
 
 
 
+
+# converter/general-note-data.ts
+
+Most if not every module needs to know some data before doing their conversions. 
+Data like the size of a heading, the font of the note.. etc..
+This data has to be accessed more than once throughout the plugin's code so it can be used in either control words for rtf or to be used in creating complex logic..
+
+"general-note-data.ts" just contains functions and logic on how to determine this data. *("conversion-logic-handler.ts" still maintains the role of piecing together how this data is used in all of it's "modules" however..)*
+
+
+## findTextHeadingsData() 
+*(explain this, this is the main thing in this file atm)*
+
 # converter/rtf-header.ts 
 
 This is the file that defines the RTF header.
-I chose to define header everytime a file is set to be converted instead of just one time at the start of plugin because user could change styles *(which directly determines the color table in the header)* or some kind of important data in-between each conversion..
+
+I chose to define header everytime a file is clicked to be converted *(in "conversion-logic-handler.ts" in the convert() method as previously mentioned.)* instead of just one time at the start of plugin because user could change styles *(which directly determines the color table in the header)* or some kind of important data in-between each conversion..
 
 
+Everything starts from the "setRtfHeader()" method. 
+```ts
+public static setRtfHeader(): string{
+
+
+}
+```
+
+
+*(keep explaining this in full)*
