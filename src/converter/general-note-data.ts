@@ -11,7 +11,7 @@ export default class GeneralNoteData{
 
     public static rtfFontSize: string = ""
     public static obsidianFontSize: string = "";
-    public static textHeadings: TextHeadingData[] = []; 
+    static textHeadings: TextHeadingData[] = []; 
      // textHeadings[1] = Heading 1 data..
      // textHeadings[2] = Heading 2 data..
      // etc...
@@ -44,14 +44,13 @@ export default class GeneralNoteData{
     }
 
     public static convertToRtfFontSize(fontSize: string): string{
-      return "\\fs" + (Math.round(parseFloat(fontSize)*2)).toString();  
+        return "\\fs" + (Math.round(parseFloat(fontSize)*2)).toString();  
     }
 
 
 
     private static findTextHeadingsData():TextHeadingData[]{
-        //We're expecting 5 heading levels for a default stock obsidian vault. 
-
+        
         let finalTextHeadingsData: TextHeadingData[] = [];
 
         for(let i = 1; i <= 5; i++){
@@ -69,10 +68,8 @@ export default class GeneralNoteData{
             let color = getComputedStyle(textHeadingColorElement).color;
             color = color.replace(/[ ()rgba]/g, "");
             color = this.checkForDarkThemeColors(color);
-            color = this.convertToRtfColor(color.split(","));
-            newTextHeadingData.headingColor = color;
-            //also check if when no style is applied if default regular colors (Expecting blacks and whites)
-            //are present in rtf header...
+            newTextHeadingData.headingColor = this.convertToRtfColor(color.split(","));
+
 
             finalTextHeadingsData[i] = newTextHeadingData;
             this.deleteNewStyledElementProbe(textHeadingColorElement);
@@ -91,15 +88,8 @@ export default class GeneralNoteData{
     }
 
     private static checkForDarkThemeColors(color: string): string{
-        //Stock obsidian dark theme has a color for headings that can be hard to read in a white background
-        //of an rtf. So we're setting it to black as default.
-
-        if(color == "218,218,218")
-            return "0,0,0";
-        else
-            return color;
-
-
+        if(color == "218,218,218") return "0,0,0";
+        else return color;
     }
 
     public static convertToRtfColor(color: string[]): string{
@@ -110,10 +100,6 @@ export default class GeneralNoteData{
 
 
     public static probeForNewStyledElement(elementName: string): HTMLElement{
-         //Used for ANY element we can't get a global varible on...
-         //Makes a new 'probe' or a new fake element to exist as if it were being rendered by obsidian.
-         //Some varibles are global in obsidian, meaning they just exist even if user hasn't typed anything on a note. (E.g font size.)
-         //While others require the user to actually type something in a note (E.g custom themes.)
         const probe = document.createElement(elementName);
 
         probe.style.position = "absolute";

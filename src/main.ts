@@ -1,37 +1,17 @@
 import {FileSystemAdapter, App, Plugin, TFile, Menu} from 'obsidian'
-import { mdToRtfPluginSettings } from './settings';
-import * as fs from 'fs';
-import * as os from "os";
-import * as path from "path";
+import { mdToRtfPluginSettings } from './settings/settings-ui';
 import ConversionLogicHandeler from 'converter/conversion-logic-handler';
 import Notices from 'notices';
+import * as fs from 'fs';
+import * as path from "path";
+import Settings from 'settings/settings';
+import { DEFAULT_FOLDERPATH_SETTING } from 'settings/settings';
+import { UNDEFINED_FOLDERPATH_SETTING } from 'settings/settings';
 
-interface folderPathSetting{
-	directoryPath: string;
-	keyForAccurateDirectory: number;
-		//-1 = error/undefined/something went wrong
-		// 0 = the desktop (default)
-		// 1 = same place as the note
-		// 2 = other place specified by user
-}
-
-const DEFAULT_FOLDERPATH_SETTING: folderPathSetting = {
-	directoryPath: path.join(os.homedir(), "Desktop"),
-	keyForAccurateDirectory: 0
-}
-
-const UNDEFINED_FOLDERPATH_SETTING: folderPathSetting = {
-	directoryPath: "",
-	keyForAccurateDirectory: -1
-}
 
 export default class mdToRtfPlugin extends Plugin{
-	
-	folderPathSetting: folderPathSetting;
+	public mdToRtfSettings: Settings = new Settings();
 
-	
-	
-	
 	async onload(){
 		this.loadSettings();
 		this.registerEvent(
@@ -49,18 +29,19 @@ export default class mdToRtfPlugin extends Plugin{
 	}
 
 	public async saveSettings(){
-		await this.saveData(this.folderPathSetting);
+		await this.saveData(this.mdToRtfSettings.folderPathSetting);
 	}
 
 
 	private async checkAndSetDefaultFolderPath(){
-		this.folderPathSetting = Object.assign({}, await this.loadData());
-		if(this.folderPathSetting.keyForAccurateDirectory > 0)
+		this.mdToRtfSettings.folderPathSetting = Object.assign({}, await this.loadData());
+		if(this.mdToRtfSettings.folderPathSetting.keyForAccurateDirectory > 0)
 			return;
+
 		if(fs.existsSync(DEFAULT_FOLDERPATH_SETTING.directoryPath)){
-			this.folderPathSetting = Object.assign({}, DEFAULT_FOLDERPATH_SETTING); 
+			this.mdToRtfSettings.folderPathSetting = Object.assign({}, DEFAULT_FOLDERPATH_SETTING); 
 		}else{
-			this.folderPathSetting = Object.assign({}, UNDEFINED_FOLDERPATH_SETTING);
+			this.mdToRtfSettings.folderPathSetting = Object.assign({}, UNDEFINED_FOLDERPATH_SETTING);
 			Notices.newErrorNotice("Could not set a default directory path. Please manually set one to avoid errors!", "");
 		}
 
@@ -75,7 +56,7 @@ export default class mdToRtfPlugin extends Plugin{
 		if (adapter instanceof FileSystemAdapter){
 			tempPathString = adapter.getFullPath(file.path).replace(file.name, "");
 			if(!this.checkValidDirectoryPath(tempPathString)) return false; //Checking to see if it's valid anyway
-			this.folderPathSetting.directoryPath = tempPathString
+			this.mdToRtfSettings.folderPathSetting.directoryPath = tempPathString
 			this.saveSettings();
 			return true;
 		}else{
@@ -89,7 +70,7 @@ export default class mdToRtfPlugin extends Plugin{
 
 	public checkForValidDesktopBeforeSaving(): boolean{
 		if(fs.existsSync(DEFAULT_FOLDERPATH_SETTING.directoryPath)){
-			this.folderPathSetting.directoryPath = DEFAULT_FOLDERPATH_SETTING.directoryPath;
+			this.mdToRtfSettings.folderPathSetting.directoryPath = DEFAULT_FOLDERPATH_SETTING.directoryPath;
 			this.saveSettings();
 			return true;
 		}else{
@@ -117,7 +98,7 @@ export default class mdToRtfPlugin extends Plugin{
 			case 1:
 				return this.setCurrentClickedOnFileDirectory(this.app, file);
 			case 2:
-				return this.checkValidDirectoryPath(this.folderPathSetting.directoryPath);
+				return this.checkValidDirectoryPath(this.mdToRtfSettings.folderPathSetting.directoryPath);
 			default:
 				Notices.newErrorNotice("Invalid option for folder path setting. ", "");
 				return false;
@@ -126,7 +107,7 @@ export default class mdToRtfPlugin extends Plugin{
 
 	private async conversionOfFileToRTF(file: TFile){
 		
-		if(!this.findAccurateDirectoryBasedOnKey(this.folderPathSetting.keyForAccurateDirectory, file))
+		if(!this.findAccurateDirectoryBasedOnKey(this.mdToRtfSettings.folderPathSetting.keyForAccurateDirectory, file))
 			return;
 		
 		
@@ -138,7 +119,7 @@ export default class mdToRtfPlugin extends Plugin{
 			return;
 		}
 
-		const outputFilePath: string = path.join(this.folderPathSetting.directoryPath, file.basename + ".rtf");
+		const outputFilePath: string = path.join(this.mdToRtfSettings.folderPathSetting.directoryPath, file.basename + ".rtf");
 		
 		const conversionHandeler: ConversionLogicHandeler = new ConversionLogicHandeler();
 		conversionHandeler.convert(inputFilePath, outputFilePath);

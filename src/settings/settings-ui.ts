@@ -1,5 +1,5 @@
 import {App, PluginSettingTab, Setting} from "obsidian";
-import mdToRtfPlugin from "./main";
+import mdToRtfPlugin from "../main";
 
 
 export class mdToRtfPluginSettings extends PluginSettingTab {
@@ -14,12 +14,17 @@ export class mdToRtfPluginSettings extends PluginSettingTab {
 		const {containerEl} = this;
 		containerEl.empty();
 
+		this.createAllBaseOptions();
+	}
+
+	private createAllBaseOptions(): void{
 		this.createDirectoryPicker();
+
 	}
 
 	private deleteCustomDirectoryOption(): void{
 		this.containerEl.empty();
-		this.createDirectoryPicker();
+		this.createAllBaseOptions();
 	}
 
 	private createCustomDirectoryOption(){
@@ -29,9 +34,9 @@ export class mdToRtfPluginSettings extends PluginSettingTab {
 		.addText(async (text) =>{
 			text
 			 .setPlaceholder("")
-			 .setValue(this.plugin.folderPathSetting.directoryPath)
+			 .setValue(this.plugin.mdToRtfSettings.folderPathSetting.directoryPath)
 			 .onChange((value) =>{
-				this.plugin.folderPathSetting.directoryPath = value;
+				this.plugin.mdToRtfSettings.folderPathSetting.directoryPath = value;
 				this.plugin.saveSettings();
 			 })
 		})
@@ -46,7 +51,7 @@ export class mdToRtfPluginSettings extends PluginSettingTab {
 			.addOption('0', "The Desktop.")
 			.addOption('1', "Same place as original note.")
 			.addOption('2', "Other. (Custom directory. Please specify below.)") 
-			.setValue(this.savedValueHandling(this.plugin.folderPathSetting.keyForAccurateDirectory.toString()))
+			.setValue(this.savedValueHandling(this.plugin.mdToRtfSettings.folderPathSetting.keyForAccurateDirectory.toString()))
 			.onChange(async (value) =>{
 				this.pickedValueHandling(value);
 			})
@@ -61,7 +66,7 @@ export class mdToRtfPluginSettings extends PluginSettingTab {
 	}
 
 	private async pickedValueHandling(value: string){
-		this.plugin.folderPathSetting.keyForAccurateDirectory = parseInt(value);
+		this.plugin.mdToRtfSettings.folderPathSetting.keyForAccurateDirectory = parseInt(value);
 		await this.plugin.saveSettings();
 
 		switch(value){
@@ -71,11 +76,11 @@ export class mdToRtfPluginSettings extends PluginSettingTab {
 				break;
 			case '1':
 				this.deleteCustomDirectoryOption();
-				this.plugin.folderPathSetting.directoryPath = "";
+				this.plugin.mdToRtfSettings.folderPathSetting.directoryPath = "";
 				await this.plugin.saveSettings();
 				break;
 			case '2':
-				this.plugin.folderPathSetting.directoryPath = "";
+				this.plugin.mdToRtfSettings.folderPathSetting.directoryPath = "";
 				this.createCustomDirectoryOption();
 				break;
 		}

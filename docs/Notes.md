@@ -17,7 +17,12 @@ This file handles the initial setup and general backbone of the plugin, as well 
 ## Main execution flow
 *(This is most of main.ts)*
 
-At the start of main.ts, there is the "folderPathSetting" interface.
+At the start of the main class is a call to the settings on "settings/settings.ts"
+```ts
+public mdToRtfSettings: Settings = new Settings();
+```
+
+In this file, at the top is the "folderPathSetting" interface.
 ```ts
 interface folderPathSetting{
   directoryPath: string;
@@ -25,13 +30,11 @@ interface folderPathSetting{
 }
 ```
 
-It is called into a new variable at the start of the exported class.
+It is called into a new variable at the start of the class.
 ```ts
-export default class mdToRtfPlugin extends Plugin{
-    folderPathSetting: folderPathSetting;
+export default class Settings{
+	public folderPathSetting: folderPathSetting;
 ```
-
-This is put on main for easier access, as the output/what it's actually set to, will be used the most on main.ts.
 
 Reason for this interface is because I made a user setting for the plugin that allows the user to pick where they want a future converted file to go to.
 There's 3 choices..
@@ -62,7 +65,7 @@ Why I chose to do it like this is because of these reasons:
   *Like for instance.. 
   Trying to validate a directory path as a user is typing it. (When option 3 is selected.) 
   Or...
-  Validating a path to the desktop DIRECTLY in settings.ts. (When option 1 is selected.) 
+  Validating a path to the desktop DIRECTLY in settings-ui.ts. (When option 1 is selected.) 
   I found to be inefficient. 
   So throwing an error right as the user tries to convert a note, seemed to me to be a clean way to validate any directory.*
 
@@ -99,7 +102,7 @@ Now how the program gets there is through a small execution flow.
    ```ts
     private async conversionOfFileToRTF(file: TFile){
         if(this.findAccurateDirectoryBasedOnValue(
-        this.folderPathSetting.keyForAccurateDirectory, file) === -1)
+        this.mdToRtfSettings.folderPathSetting.keyForAccurateDirectory, file) === -1)
             return;
    ```
 *(before conversion happens, find the directory)*
@@ -114,7 +117,7 @@ Now how the program gets there is through a small execution flow.
 				return this.setCurrentClickedOnFileDirectory(this.app, file);
 			case 2:
 				return this.checkValidDirectoryPath(
-				this.folderPathSetting.directoryPath);
+				this.mdToRtfSettings.folderPathSetting.directoryPath);
 			default:
 				Notices.newErrorNotice(
 				"Invalid option for folder path setting. ", "");
@@ -142,8 +145,10 @@ if the user has not set a directory path, the program will keep setting the data
 
 ```ts
 private async checkAndSetDefaultFolderPath(){
-	this.folderPathSetting = Object.assign({}, await this.loadData());
-	if(this.folderPathSetting.keyForAccurateDirectory > 0)
+	this.mdToRtfSettings.folderPathSetting = Object.assign({}, await 
+	this.loadData());
+	
+	if(this.mdToRtfSettings.folderPathSetting.keyForAccurateDirectory > 0)
 		return;
 		//Stops the check right here if the user has already set the folder path
 		//to something else besides default.
@@ -151,11 +156,13 @@ private async checkAndSetDefaultFolderPath(){
 		//"0 = Desktop (Default), -1 = undefined/error")
 		
 	if(fs.existsSync(DEFAULT_FOLDERPATH_SETTING.directoryPath)){
-		this.folderPathSetting = Object.assign({}, DEFAULT_FOLDERPATH_SETTING);
+		this.mdToRtfSettings.folderPathSetting = Object.assign({}, 
+		DEFAULT_FOLDERPATH_SETTING);
 		//Will assign the default folder path. (As the desktop, 
 		//if program can find the path to the desktop.)
 	}else{
-		this.folderPathSetting = Object.assign({}, UNDEFINED_FOLDERPATH_SETTING);
+		this.mdToRtfSettings.folderPathSetting = Object.assign({}, 
+		UNDEFINED_FOLDERPATH_SETTING);
 		Notices.newErrorNotice("Could not set a default directory path." 
 		"Please manually set one to avoid errors!", "");
 		//Will assign undefined folder path setting to folder path setting if 
@@ -164,7 +171,7 @@ private async checkAndSetDefaultFolderPath(){
 }
 ```
 
-# settings.ts 
+# settings/settings-ui.ts 
 
 This is where the actual logic of the user settings for the plugin is deliberately handled, which main.ts will be using. 
 
@@ -177,10 +184,17 @@ display(): void {
 	const {containerEl} = this;
 	containerEl.empty();
 	
+	this.createAllBaseOptions();
+}
+```
+*(.createAllBaseOptions() method is just a wrapper for all "Base options" to be created.
+Meaning any options a user would just see by default at first install without clicking anything.)*
+
+```ts
+private createAllBaseOptions(): void{
 	this.createDirectoryPicker();
 }
 ```
-
 The main settings for the md-to-rtf converter plugin is essentially just changing the directory where converted file is printed to.
 Hence the name and the method "createDirectoryPicker()"
 ↓
@@ -196,7 +210,8 @@ private createDirectoryPicker(){
 		.addOption('1', "Same place as original note.")
 		.addOption('2', "Other. (Custom directory. Please specify below.)")		
 		.setValue(this.savedValueHandling(
-		this.plugin.folderPathSetting.keyForAccurateDirectory.toString()))
+		this.plugin.mdToRtfSettings.folderPathSetting.keyForAccurateDirectory
+		.toString()))
 		 .onChange(async (value) =>{
 			this.pickedValueHandeling(value);
 		})
@@ -225,7 +240,8 @@ This allows program to both create the custom directory option if it's needed an
 ↓
 ```ts
 private async pickedValueHandling(value: string){
-	this.plugin.folderPathSetting.keyForAccurateDirectory = parseInt(value);
+	this.plugin.mdToRtfSettings.folderPathSetting.keyForAccurateDirectory = 
+	parseInt(value);
 	await this.plugin.saveSettings();
 
 	switch(value){
@@ -235,11 +251,11 @@ private async pickedValueHandling(value: string){
 			break;
 		case '1':
 			this.deleteCustomDirectoryOption();
-			this.plugin.folderPathSetting.directoryPath = "";
+			this.plugin.mdToRtfSettings.folderPathSetting.directoryPath = "";
 			await this.plugin.saveSettings();
 			break;
 		case '2':
-			this.plugin.folderPathSetting.directoryPath = "";
+			this.plugin.mdToRtfSettings.folderPathSetting.directoryPath = "";
 			this.createCustomDirectoryOption();
 			break;
 }
@@ -260,13 +276,13 @@ The directory path is set to "" again by default and program goes to ".createCus
 ```ts
 	private deleteCustomDirectoryOption(): void{
 		this.containerEl.empty();
-		this.createDirectoryPicker();
+		this.createAllBaseOptions();
 	}
 ```
 - The purpose for this logic is because any time the 3rd option *"Other. (Custom directory. Please specify below.)"* is selected, a new option will appear under the "directory picker" option allowing them to input their custom directory.
   However, the program shouldn't keep the custom directory option alive if user choses another option. So it will need to be rid of.
   ⠀
-- How the program will get rid of it is by deleting the whole container element *(where all the options are stored)*, then re-create the "directory picker" option anytime another option other than the 3rd option is chosen by the user. 
+- How the program will get rid of it is by deleting the whole container element *(where all the options are stored)*, then re-create the all the base options *(including "directory picker" option)* anytime another option other than the 3rd option is chosen by the user. 
   ⠀ ⠀
 - Of course, if 3rd option is picked, then it will create the custom directory option...
 
@@ -279,9 +295,9 @@ private createCustomDirectoryOption(){
 	.addText(async (text) =>{
 		text
 		 .setPlaceholder("")
-		 .setValue(this.plugin.folderPathSetting.directoryPath)
+		 .setValue(this.plugin.mdToRtfSettings.folderPathSetting.directoryPath)
 		 .onChange((value) =>{
-			this.plugin.folderPathSetting.directoryPath = value;
+			this.plugin.mdToRtfSettings.folderPathSetting.directoryPath = value;
 			this.plugin.saveSettings();
 		 })
 	})
@@ -388,6 +404,7 @@ I found this to be the most efficient since conversion-logic-handler is cause ev
 
 
 # Explanation of RTF headers
+
 Before explaining converter/rtf-header.ts and converter/general-note-data.ts. An explanation of RTF headers is needed.
 
 The header of an RTF file is at the very top of the file. How RTF works is everything it is going to use in the file, **is defined here.** 
@@ -527,8 +544,199 @@ This data has to be accessed more than once throughout the plugin's code so it c
 "general-note-data.ts" just contains functions and logic on how to determine this data. *("conversion-logic-handler.ts" still maintains the role of piecing together how this data is used in all of it's "modules" however..)*
 
 
+The main method ".findGeneralNoteData()" in this file is where it all starts, and is executed when program is set to convert in conversion-logic-handler.ts
+```ts
+public async convert(inputFilePath: string, outputFilePath: string){
+        GeneralNoteData.findGeneralNoteData();
+        ...
+        ...
+```
+
+
 ## findTextHeadingsData() 
-*(explain this, this is the main thing in this file atm)*
+
+This method gets the color and the size of an obsidian heading.
+
+This data, that has been converted into rtf control words, using this method, is packaged into an interface object called "TextHeadingData."
+```ts
+export interface TextHeadingData{
+    headingSize: string,
+    headingColor: string,
+}
+```
+
+The data is accessed by an array created with this interface as a type, and the way it's accessed is intuitive indexing.
+```ts
+static textHeadings: TextHeadingData[] = [];
+```
+Meaning..
+`textHeadings[1]` = Heading 1 data..
+`textHeadings[2]` = Heading 2 data..
+and so on.
+⠀⠀⠀⠀⠀*This is used in the method ".getATextHeadingData()":*
+```ts
+	public static getATextHeadingData(index: number): TextHeadingData{
+		return GeneralNoteData.textHeadings[index] ?? 
+		GeneralNoteData.defaultTextHeadingData();
+	}
+```
+⠀⠀⠀⠀*Decided that any text heading data should be accessed in this way because it is cleaner...*
+⠀⠀⠀⠀ *(It handles the "undefined" potential error)*
+
+
+
+```ts
+private static findTextHeadingsData():TextHeadingData[]{
+	
+	let finalTextHeadingsData: TextHeadingData[] = [];
+	
+	for(let i = 1; i <= 5; i++){
+		let newTextHeadingData: TextHeadingData = this.defaultTextHeadingData();
+		
+		
+		let textHeadingFontSize = 
+		getComputedStyle(document.body).getPropertyValue("--h"+i+"-size");
+		
+		let adjustedFontSize = parseFloat(textHeadingFontSize) * 
+		parseFloat(this.obsidianFontSize);
+		
+		newTextHeadingData.headingSize = 
+		this.convertToRtfFontSize(adjustedFontSize.toString());
+		
+		
+		let textHeadingColorElement = this.probeForNewStyledElement("h"+i);
+		let color = getComputedStyle(textHeadingColorElement).color;
+		color = color.replace(/[ ()rgba]/g, "");
+		color = this.checkForDarkThemeColors(color);
+		newTextHeadingData.headingColor = this.convertToRtfColor(color.split(","));
+		
+		
+		finalTextHeadingsData[i] = newTextHeadingData;
+		this.deleteNewStyledElementProbe(textHeadingColorElement);
+	}
+	
+	
+	return finalTextHeadingsData;
+}
+```
+
+### For loop overview
+```ts
+for(let i = 1; i <= 5; i++){
+...
+```
+We expect 5 heading levels for a default stock obsidian vault, so starting with 1 incrementing up to 5, the program will find each heading's color and size.
+
+Each one from each iteration is stored in a temporary variable set to a default 
+```ts
+let newTextHeadingData: TextHeadingData = this.defaultTextHeadingData();
+```
+*(the default text heading is just a TextHeading with its size set to the DEFAULT_FONT_SIZE and its color set to ";\red0\green0\blue0;" black as a default.)*
+.
+At the end of each iteration the temporary variable is set to the temporary array
+`let finalTextHeadingsData: TextHeadingData[] = [];` 
+corresponding to it's current index. 
+*(So "finalTextHeadingsData[2]" would have the data of an obsidian level 2 heading)*
+
+At the end of the entire method, the temporary array finalTextHeadingsData is returned, allowing it to be set to the actual textHeadings array that is publicly accessed. 
+```ts
+...
+return finalTextHeadingsData;
+```
+
+
+### For loop detailed breakdown
+
+Finding the heading font size:
+```ts
+let textHeadingFontSize = getComputedStyle(document.body)
+.getPropertyValue("--h"+i+"-size");
+```
+The data from obsidian that handles the headings sizes are global variables. They can be returned normally using those web api methods.
+However,
+other data, like the color, isn't a global variable, and can't be returned normally. Therefore needing a "probe." *(Explained in "probeForNewStyledElement()" sub-section.)*
+
+
+```ts
+let adjustedFontSize = parseFloat(textHeadingFontSize) * parseFloat(this.obsidianFontSize);
+```
+"adjustedFontSize" = em *(from --hx-size)* * *px (from obsidian font size)*
+
+
+```ts
+newTextHeadingData.headingSize = 
+this.convertToRtfFontSize(adjustedFontSize.toString());
+```
+Sets the heading size of the temporary TextHeading variable to the adjusted font size, but converted to rtf format in ".convertToRtfFontSize()" method. 
+*(All this does is convert the data into an rtf control word, and the 2x multiplication to the font size needed for rtf as mentioned in "Explanation of RTF Headers section")*
+
+
+Finding the heading color:
+```ts
+let textHeadingColorElement = this.probeForNewStyledElement("h"+i);
+let color = getComputedStyle(textHeadingColorElement).color;
+```
+This data needs a "probe" *(Explained in "probeForNewStyledElement()" sub-section.)* because obsidian doesn't have a global heading color variable.
+The color is then found from the probe as normal.
+
+```ts
+color = color.replace(/[ ()rgba]/g, "");
+```
+Cleans up the color a little bit. Takes it from "rgba(12, 34, 56, 0.1)" to "12,34,56,0.1"
+
+```ts
+color = this.checkForDarkThemeColors(color);
+```
+↓
+```ts
+private static checkForDarkThemeColors(color: string): string{
+	if(color == "218,218,218") return "0,0,0";
+	else return color;
+}
+```
+This check is needed because stock obsidian dark theme has a color for headings that can be hard to read in a white background of an rtf. 
+So in the method it is set to black as default if this color from the obsidian dark theme is detected.
+
+```ts
+newTextHeadingData.headingColor = this.convertToRtfColor(color.split(","));
+```
+Sets the heading color of the temporary TextHeading variable to the color, but converted to rtf format in ".convertToRtfColor()" method. 
+
+
+## probeForNewStyledElement() 
+
+This method is used for ANY element we can't get a global variable on...
+Makes a new 'probe' or a new, invisible, barebones HTML element to exist as if it were being rendered by obsidian.
+
+Some variables are global in obsidian, meaning they just exist even if user hasn't typed anything
+on a note. (E.g font size.)
+
+While others require the user to actually type something in a note (E.g custom themes.)
+
+```ts
+public static probeForNewStyledElement(elementName: string): HTMLElement{
+	
+	const probe = document.createElement(elementName);
+	
+	probe.style.position = "absolute";
+	probe.style.visibility = "hidden";
+	probe.style.pointerEvents = "none";
+	
+	return document.body.appendChild(probe);
+}
+```
+
+## deleteNewStyledElementProbe()
+Every probe made has to be deleted eventually of course, otherwise it stays on the note indefinitely. 
+It's just needed to find data and then is ought to be removed.
+```ts
+public static deleteNewStyledElementProbe(probe: HTMLElement){
+	probe.remove();
+}
+```
+
+
+
 
 # converter/rtf-header.ts 
 
@@ -536,14 +744,285 @@ This is the file that defines the RTF header.
 
 I chose to define header everytime a file is clicked to be converted *(in "conversion-logic-handler.ts" in the convert() method as previously mentioned.)* instead of just one time at the start of plugin because user could change styles *(which directly determines the color table in the header)* or some kind of important data in-between each conversion..
 
+## Header colors guide
+*(1 starts at the first element in the color table)* 
 
+1 = highlight color
+2 = highlight TEXT color
+3 - 7 = Headings 1 - 5 colors
+8 = bold text color
+
+
+## Main execution flow
 Everything starts from the "setRtfHeader()" method. 
 ```ts
 public static setRtfHeader(): string{
-
-
+	
+	let finishedHeader: string =
+	 "{\\rtf1\\ansi\\ansicpg1252\\deff0\\nouicompat\n" +
+	 "{\\fonttbl{\\f0\\fnil\\fcharset0 INSERT_FONT;}}\n" +
+	 "{\\colortblINSERT_COLORS}\n" +
+	 "{\\*\\generator .md-to-.rtf Converter plugin for" 
+	 "obsidian!}\\viewkind4\\uc1\n" +
+	 "\\pard\\f0INSERT_DEFAULT_FONT_SIZE\n";
+	
+	finishedHeader = finishedHeader.replace("INSERT_FONT", 
+	this.getObsidianVaultFont());
+	
+	finishedHeader = finishedHeader.replace("INSERT_COLORS", 
+	this.setHeaderColors());
+	
+	finishedHeader = finishedHeader.replace("INSERT_DEFAULT_FONT_SIZE", 
+	GeneralNoteData.rtfFontSize);
+	
+	
+	return finishedHeader;
 }
 ```
 
+The finished header is the full skeleton of the header for the RTF file, just with all the actual useable data marked with temporary words.
+The program can just insert the data by replacing the temporary words once it has been located using the methods...
 
-*(keep explaining this in full)*
+## Finding the font execution flow
+1. .getObsidianVaultFont() 
+```ts
+private getObsidianVaultFont(): string{
+	const editorEl = document.querySelector('.cm-content') as HTMLElement;
+	
+	if(editorEl){
+		const computedStyle = window.getComputedStyle(editorEl);
+		const fontFamilyString = computedStyle.fontFamily;
+		
+		return this.deduceToSingularFont(fontFamilyString);
+	}else{
+		this.fontError();
+		return DEFAULT_FONT;
+	}
+}
+```
+
+```ts
+const editorEl = document.querySelector('.cm-content') as HTMLElement;
+```
+".cm-content" is the css class, being used as an html element, is responsible for styling the text on all text, therefore it contains the font family *(which contains the font)* used by obsidian note files.
+
+```ts
+if(editorEl){
+...
+	return this.deduceToSingularFont(fontFamilyString);
+}else{
+	this.fontError();
+	return DEFAULT_FONT;
+}
+```
+If the element exists this is where the code will take place,
+however if it doesn't for some reason, an error will be shown to the user and the default font will be used instead.
+↓
+
+2. .deduceToSingularFont() 
+```ts
+private deduceToSingularFont(fontFamilyString: string): string{
+	 
+	fontFamilyString = fontFamilyString.replace(/["?\uFFFD]/g, "");
+	 //Rids the string of any ",? or unknown characters
+	 
+	let listOfFonts: string[];
+	listOfFonts = fontFamilyString.split(",");
+	
+	let correctFont: string = "";
+	
+	for(const font of listOfFonts){
+		if(font === "" || font === " ")
+			continue;
+			
+		correctFont = this.cleanUpFont(font);
+		break;  
+	}
+	
+	if(correctFont == undefined || correctFont == "") return DEFAULT_FONT;
+	else return correctFont;
+}
+```
+This is needed because program is isolating the "font-family" attribute of ".cm-content"
+"font-family" has a whole list of fonts to use, it will go through them in line if there isn't a valid one.
+This method is just getting the first valid one. *(If it isn't nothing or empty)*
+```ts
+correctFont = this.cleanupFont(font)
+```
+This is needed to clean up the font even further, as the exact element from the previous
+array could look like: *"  font-name here"*. It needs to look like **"font-name here"**
+↓
+
+ 3. .cleanUpFont() method
+```ts
+private cleanUpFont(font: string): string{
+	
+	let finalFontStringArray: string[] = Array.from(font);
+	 
+	let ffsa_index: number = 0; //'ffs' = finalFontStringArray
+	let trueIndex: number = 0;
+	
+	for(let index = 0; index < font.length;){
+		if(font[index] !== " ")
+			break;
+			
+		if(font[index] === " "){
+			trueIndex++;
+			index++;
+			continue;
+		}
+	}
+	
+	do{
+		finalFontStringArray[ffsa_index] = font[trueIndex] ?? "";
+		ffsa_index++;
+		trueIndex++;
+	}while(font[ffsa_index] != undefined);
+	
+	return finalFontStringArray.join("");	
+}
+```
+
+```ts
+let finalFontStringArray: string[] = Array.from(font);
+```
+Just need this to initialize and have it be similar in length to the font string.
+This will be overwritten shortly.
+
+```ts
+...
+let trueIndex: number = 0;
+
+for(let index = 0; index < font.length;){
+	if(font[index] !== " ")
+		break;
+		
+	if(font[index] === " "){
+		trueIndex++;
+		index++;
+		continue;
+}
+```
+If program finds an actual character that isn't a blankspace it will break,
+however if it does, it will increment the true starting index for use to reference
+when the program actually does find a non blankspace character.
+
+
+```ts
+do{
+	finalFontStringArray[ffsa_index] = font[trueIndex] ?? "";
+	ffsa_index++;
+	trueIndex++;
+}while(font[ffsa_index] != undefined);
+```
+This code just assigns the new array to the font "array" *(which is a string that is treated as an array)* but at the "true index". AKA, the part of the font that contains actual characters and not whitespace.
+
+Program of course does this character by character. *(Hence why I felt it was best to use a string treated as an array.)*
+
+The do while loop stops when the end of the font "array" is found.
+
+
+```ts
+return finalFontStringArray.join("");
+```
+Converts the array into a string. Then replaces all "," characters from that conversion
+into nothing. *(This is needed cause it will do "T,e,s,t, ,S,e,n,t,a,n,c,e")*.
+Finally, returns the properly cleaned up font.
+
+
+
+
+## Finding color table execution flow
+
+1. setHeaderColors() 
+```ts
+ private setHeaderColors():string{
+ 	
+ 	let finalColorString = "";
+ 	
+ 	finalColorString += this.getHighlightColor();
+ 	finalColorString += this.getHighlightTextColor();
+ 	
+ 	for(let i = 1; i <= 5; i++){
+ 		finalColorString += GeneralNoteData.textHeadings[i]?.headingColor;
+ 	}
+ 		
+ 		
+ 	return finalColorString.replace(/; ;/g, ";");
+ 	//Since we appended colors together, and their formatting is ;color here;
+ 	//We could end up with "; ;", which could break the rtf..	
+}
+```
+↓
+ 2a. getHighlightColor()
+```ts
+private getHighlightColor(): string{
+	
+	const highlightEl = GeneralNoteData.probeForNewStyledElement("mark");
+	
+	let color = window.getComputedStyle(highlightEl).backgroundColor;
+	
+	if(color === "rgba(0, 0, 0, 0)" || color === undefined){
+		color = DEFAULT_HIGLIGHT_COLOR;
+		GeneralNoteData.deleteNewStyledElementProbe(highlightEl);
+		return color;
+	}
+	
+	color = color.replace(/[ ()rgba]/g, "");
+	let rgbValue: string[] = color.split(",");
+	
+	rgbValue = this.addHighlightOffset(rgbValue);
+	
+	color = GeneralNoteData.convertToRtfColor(rgbValue);
+	GeneralNoteData.deleteNewStyledElementProbe(highlightEl);
+	
+	return color;
+
+}
+```
+ Gets the highlight color of the vault from global variable. 
+ Which by default is an rgba, however, we just ignore the alpha by simply not using it here, cause RTF can't use alpha value.
+ *(It looks something like "rgb( 255 , 255 , 255 , 0.1 )". so program gets replaces any space characters with nothing. )*
+ Program then splits the different color values, then it gets stylized into proper RTF format.
+ ↓
+ 2b. addHighlightOffset()
+ ```ts
+private addHighlightOffset(rawHighlightColor: string[]): string[] {
+	
+	let offset = 20; //Positive integer number expected.
+	let offsettedHighlightColor: number[] = rawHighlightColor.map(Number);
+
+	for(let i = 0; i < offsettedHighlightColor.length; i++){
+		let element = offsettedHighlightColor[i];
+		if(element === undefined)
+			return rawHighlightColor;
+		element = Math.min(element + offset, 255); 
+		offsettedHighlightColor[i] = element;
+	}
+	return offsettedHighlightColor.map(String);
+}
+ ```
+Purpose of this method is that because rtf doesn't have an alpha value, this method here is to try and emulate that by just adding an offset to make the text lighter.
+
+```ts
+let offset = 20; 
+```
+This method's purpose is to make it LIGHTER not darker, so it is recommended to keep offset to a positive integer number.
+
+
+[[LEFT OFF HERE]]
+```ts
+for(let i = 0; i < offsettedHighlightColor.length; i++){
+	let element = offsettedHighlightColor[i];
+	if(element === undefined)
+		return rawHighlightColor;
+...
+```
+
+ This is needed to check if the element actually exists or not. Will throw an error if something like this isn't in place..
+
+However, this shouldn't happen because program checked if the data that went into the array was valid or not. *(In getHighlightColor() method.)*
+
+So if it is undefined, something went wrong with typescript its self. Some kind of library or something else was set wrong...
+
+Program will just return the rawHighlightColor as it was passed in, unedited IF this happens.
