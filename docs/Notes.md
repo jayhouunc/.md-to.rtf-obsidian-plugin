@@ -307,7 +307,7 @@ private createCustomDirectoryOption(){
  There will throw an error if it isn't a valid path.
 
 
-# converter/conversion-logic-handler.ts (Main execution flow)
+# converter/conversion-logic-handler.ts 
 
 This is the main file that handles all the conversion logic. 
 This is where the main meat of the plugin is. How it's built is by putting together all the different "modules" that handle every part of conversion.
@@ -384,9 +384,7 @@ public handleLine(currentLine: string): string{
 	let finalEditedLine = currentLine;
 	
 	//Add new "modules" below.
-	
-	let textHeadings:TextHeadings = new TextHeadings();      
-	finalEditedLine = textHeadings.doTextHeadingsConversion(finalEditedLine);
+	finalEditedLine = TextHeadings.doTextHeadingsConversion(finalEditedLine);
 	
 	return finalEditedLine;
 }
@@ -567,7 +565,7 @@ export interface TextHeadingData{
 
 The data is accessed by an array created with this interface as a type, and the way it's accessed is intuitive indexing.
 ```ts
-static textHeadings: TextHeadingData[] = [];
+private static textHeadings: TextHeadingData[] = [];
 ```
 Meaning..
 `textHeadings[1]` = Heading 1 data..
@@ -747,10 +745,10 @@ I chose to define header everytime a file is clicked to be converted *(in "conve
 ## Header colors guide
 *(1 starts at the first element in the color table)* 
 
-1 = highlight color
-2 = highlight TEXT color
-3 - 7 = Headings 1 - 5 colors
-8 = bold text color
+1 = *Highlight color*
+2 = *Highlight TEXT color*
+3 - 7 = *Headings 1 - 5 colors*
+8 = *Bold text color*
 
 
 ## Main execution flow
@@ -934,7 +932,7 @@ Finally, returns the properly cleaned up font.
 
 ## Finding color table execution flow
 
-1. setHeaderColors() 
+setHeaderColors() method
 ```ts
  private setHeaderColors():string{
  	
@@ -953,8 +951,8 @@ Finally, returns the properly cleaned up font.
  	//We could end up with "; ;", which could break the rtf..	
 }
 ```
-↓
- 2a. getHighlightColor()
+
+### getHighlightColor() execution flow
 ```ts
 private getHighlightColor(): string{
 	
@@ -985,44 +983,176 @@ private getHighlightColor(): string{
  *(It looks something like "rgb( 255 , 255 , 255 , 0.1 )". so program gets replaces any space characters with nothing. )*
  Program then splits the different color values, then it gets stylized into proper RTF format.
  ↓
- 2b. addHighlightOffset()
+.addHighlightOffset()
  ```ts
 private addHighlightOffset(rawHighlightColor: string[]): string[] {
 	
 	let offset = 20; //Positive integer number expected.
 	let offsettedHighlightColor: number[] = rawHighlightColor.map(Number);
-
+	
 	for(let i = 0; i < offsettedHighlightColor.length; i++){
+	
 		let element = offsettedHighlightColor[i];
+		
 		if(element === undefined)
 			return rawHighlightColor;
+			
 		element = Math.min(element + offset, 255); 
 		offsettedHighlightColor[i] = element;
 	}
 	return offsettedHighlightColor.map(String);
 }
  ```
-Purpose of this method is that because rtf doesn't have an alpha value, this method here is to try and emulate that by just adding an offset to make the text lighter.
+Purpose of this method is that because rtf doesn't have an alpha value, this method here is to try and emulate that by just adding an offset to make the text lighter. 
+The color before it is converted to rtf is passed in as a string array.
+Red representing element 0, Green element 1, and Blue element 2.
 
 ```ts
 let offset = 20; 
 ```
-This method's purpose is to make it LIGHTER not darker, so it is recommended to keep offset to a positive integer number.
+It is recommended to keep offset to a positive integer number as to make the color **LIGHTER** not darker.
 
 
-[[LEFT OFF HERE]]
 ```ts
-for(let i = 0; i < offsettedHighlightColor.length; i++){
-	let element = offsettedHighlightColor[i];
-	if(element === undefined)
-		return rawHighlightColor;
-...
+	for(let i = 0; i < offsettedHighlightColor.length; i++){
+		let element = offsettedHighlightColor[i];
+		if(element === undefined)
+			return rawHighlightColor;
+	...
 ```
 
- This is needed to check if the element actually exists or not. Will throw an error if something like this isn't in place..
+This is needed to check if the element actually exists or not. Will throw an error if something like this isn't in place..
 
 However, this shouldn't happen because program checked if the data that went into the array was valid or not. *(In getHighlightColor() method.)*
 
 So if it is undefined, something went wrong with typescript its self. Some kind of library or something else was set wrong...
 
 Program will just return the rawHighlightColor as it was passed in, unedited IF this happens.
+
+```ts
+		...
+		element = Math.min(element + offset, 255);
+		offsettedHighlightColor[i] = element;
+	}
+	return offsettedHighlightColor.map(String);
+```
+Otherwise, program will edit the elements in loop by adding the offset and truncating it if it exceeds 255 *(max value for an rgb.)*
+Sets it to the temporary array, and lastly returns the new color converted back to a string. 
+
+### getHighlightTextColor()
+
+This method sets the color of the text used when anything is highlighted in rtf.
+If there is a highlight text color set by user theme, then program will find it, convert it to rtf formatting and use it.
+```ts
+private getHighlightTextColor(): string{
+	let highlightEl = GeneralNoteData.probeForNewStyledElement("mark");
+	
+	let hightlightTextColor = getComputedStyle(highlightEl).color;
+	
+	if(hightlightTextColor == DEFAULT_OBSIDIAN_DARK_THEME_TEXT_COLOR 
+	|| hightlightTextColor == DEFAULT_OBSIDIAN_LIGHT_THEME_TEXT_COLOR)
+		return ";\\redUNDEFINED\\greenUNDEFINED\\blueUNDEFINED;";
+		
+	hightlightTextColor = hightlightTextColor.replace(/[ ()rgba]/g, "");
+	GeneralNoteData.deleteNewStyledElementProbe(highlightEl);
+	return GeneralNoteData.convertToRtfColor(hightlightTextColor.split(","));
+}
+```
+
+```ts
+if(hightlightTextColor == DEFAULT_OBSIDIAN_DARK_THEME_TEXT_COLOR 
+|| hightlightTextColor == DEFAULT_OBSIDIAN_LIGHT_THEME_TEXT_COLOR)
+	return ";\\redUNDEFINED\\greenUNDEFINED\\blueUNDEFINED;";
+```
+This exists because if the highlight text color is found to be default *(aka no defined highlight text color by user.)*
+The program will set the highlight text color's data to something arbitrary but signals that space
+won't be used *(";\\redUNDEFINED\\greenUNDEFINED\\blueUNDEFINED;")*
+
+# converter/text-headings.ts
+This file contains the code on how text headings conversion works. 
+
+The main execution flow starts with the "doTextHeadingsConversion()" method. 
+```ts
+public static doTextHeadingsConversion(lineToEdit: string): string{
+	if(lineToEdit.startsWith("#"))
+		return this.convertHeading(lineToEdit, this.findHeadingNumber(lineToEdit));
+	else
+		return lineToEdit;
+}
+```
+No matter what, obsidian *(and really markdown files in general)* only do headings when the "#" character is at the start of the line.*( '#' Is the character in markdown files that signify a heading.)*
+
+So if the line begins with a "#" character. The conversion will begin, otherwise the method will just return back the line unedited.
+↓
+```ts
+private static findHeadingNumber(lineToEdit: string): number{
+	
+	let headingNumber: number = 0;
+	
+	for(let i = 0; i < 5; i++){
+		if(lineToEdit[i] == "#")
+		   headingNumber++;
+	}
+	
+	return headingNumber;
+}
+```
+For each heading level, it corresponds to the number of "#" characters present. 
+A level 5 heading will have 5 "#"'s, a level 3 will have 3... and so on..
+
+If a character is found, it will increase the heading number, and return it.
+This will signify what text heading style to use. 
+↓
+```ts
+private static convertHeading(lineToEdit: string, headingNumber: number): string{
+	
+	let headingStyleCharacters: string = "";
+	
+	for(let i = 0; i < headingNumber;i++){
+		headingStyleCharacters+="#"
+	}
+	
+	lineToEdit = lineToEdit.replace(headingStyleCharacters,
+	this.replacerString(headingNumber));
+	
+	lineToEdit += " \\cf0" + GeneralNoteData.rtfFontSize; 
+	return lineToEdit;
+}
+```
+Once the heading number is found, it is passed into the convertHeading() method.
+This method constructs a string based on the heading number using a for loop.
+```ts
+let headingStyleCharacters: string = "";
+
+for(let i = 0; i < headingNumber;i++){
+	headingStyleCharacters+="#"
+}
+```
+
+This string will be used to replace the corresponding string within the line with the rtf control words responsible for styling the text heading. 
+```ts
+lineToEdit = lineToEdit.replace(headingStyleCharacters,this.replacerString(headingNumber));
+```
+
+The control word "\cf0" means "Color the font as the 1st index (0) in the color table".
+This along with the normal fontsize is added to the end to signal end of styling this heading in rtf..
+```ts
+ineToEdit += " \\cf0" + GeneralNoteData.rtfFontSize;
+```
+↓
+
+```ts
+private static replacerString(headingNumber: number): string{
+	
+	return GeneralNoteData.getATextHeadingData(headingNumber).headingSize 
+	+ "\\cf" + (headingNumber + 2);
+	 
+}
+```
+
+The control words are inserted here.
+Program is using the heading size from the corresponding TextHeading that was defined in "general-note-data.ts".
+However the heading color is used independently in the header, so to actually use it it needs to be referenced by the element number in the rtf header.
+
+`(this.headingNumber + 2)`
+*Have to offset it by 2 cause highlighter color is 1 and highlight text color is 2 in the color table..*

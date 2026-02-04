@@ -6,6 +6,7 @@ import * as readLine from "readline";
 
 import TextHeadings from "./text-headings";
 import RtfHeader from "./rtf-header";
+import TextStyling from "./text-styling";
 
 
 
@@ -67,9 +68,8 @@ export default class ConversionLogicHandler{
         let finalEditedLine = currentLine; 
 
         //Add new "modules" below.
-
-        let textHeadings:TextHeadings = new TextHeadings();       
-        finalEditedLine = textHeadings.doTextHeadingsConversion(finalEditedLine);
+        finalEditedLine = TextHeadings.doTextHeadingsConversion(finalEditedLine);
+        console.log(TextStyling.isolateSubString(finalEditedLine));
         
         
         return finalEditedLine;

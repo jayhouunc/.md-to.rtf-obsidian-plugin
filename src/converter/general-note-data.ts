@@ -11,7 +11,7 @@ export default class GeneralNoteData{
 
     public static rtfFontSize: string = ""
     public static obsidianFontSize: string = "";
-    static textHeadings: TextHeadingData[] = []; 
+    private static textHeadings: TextHeadingData[] = []; 
      // textHeadings[1] = Heading 1 data..
      // textHeadings[2] = Heading 2 data..
      // etc...

@@ -163,20 +163,6 @@ export default class RtfHeader{
 
 
     private getHighlightTextColor(): string{
-
-        //If there is a highlight text color used by a user, then we'll use that 
-        //if it can't find it, then we wont..
-        //we need to do it this way because ALL colors are needed to be defined in the header
-        //and we can't just leave it out if a color doesn't exist..
-        //so if it's default aka no defined highlight text color by user
-        //we'll set the highlight text color's data in the header to something arbitrary but signals that space
-        //won't be used (";\\redUNDEFINED\\greenUNDEFINED\\blueUNDEFINED;";)
-        //and then we'll set a boolean to false, to signify it in text-styling.ts to not add formatting to 
-        //use any color for text when in a highlight block..
-        //however, if there is a highlight text color
-        //of course we get the color, set it in the header, and set the boolean to true, signifying to text-styling.ts
-        //it can use it...
-
         let highlightEl = GeneralNoteData.probeForNewStyledElement("mark");
         let hightlightTextColor = getComputedStyle(highlightEl).color;
 
