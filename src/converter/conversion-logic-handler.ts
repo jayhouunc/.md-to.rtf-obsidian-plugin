@@ -69,7 +69,7 @@ export default class ConversionLogicHandler{
 
         //Add new "modules" below.
         finalEditedLine = TextHeadings.doTextHeadingsConversion(finalEditedLine);
-        console.log(TextStyling.isolateSubString(finalEditedLine));
+        finalEditedLine = TextStyling.doTextStyling(finalEditedLine)
         
         
         return finalEditedLine;

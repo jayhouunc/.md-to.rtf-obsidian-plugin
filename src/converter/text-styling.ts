@@ -1,19 +1,117 @@
-
+import GeneralNoteData from "./general-note-data";
+import { ObsidianStyleData } from "./general-note-data";
 
 export default class TextStyling{
 
-    private static sChars:string[] = //sChars means "Styling Characters"
-    ["~", "=", "*", "_"]; 
+    private static sChars:string[] = //sChar means "Styling Character"
+    ["*", "_", "=", "~"]; 
+    private static lineToEdit: string;
+    private static lineIndexPointer: number = 0;
+    private static numOfScharsFound: number = 0;
     
 
-    /**
-     * idea is to do someting like
-     * findAStylingCharacter(line, 1) ???????????
-     */
+
+    //Will be rewriting this code
+    //Just wanted to experiment with approaches
+
+    public static doTextStyling(linetoEdit: string):string{
+
+        this.lineToEdit = linetoEdit;
+
+        for(let sCharToCheck of this.sChars){
+           this.styleHandler(sCharToCheck);
+        }
+
+        this.reset();
+        return this.lineToEdit;
+
+    }
+
+    private static reset(){
+        this.lineIndexPointer = 0;
+        this.lineIndexPointer = 0;
+    }
+
+
+    private static styleHandler(sCharToCheck: string){
+       
+        for(let i = 0; i < this.lineToEdit.length; i++){
+            let start:number =  this.findAnSChar(sCharToCheck, this.lineIndexPointer);
+            if(start == -1) continue;
+            console.log("before:" + this.lineIndexPointer)
+            let end:number = this.findAnSChar(sCharToCheck, this.lineIndexPointer)
+            if(end == -1) continue;
+            console.log("after:" + this.lineIndexPointer)
+            //console.log(start + ":" + this.lineToEdit[start] + "|" + start + ":" + this.lineToEdit[end] )
+
+            let foundStyle: ObsidianStyleData = GeneralNoteData.returnStyleData(sCharToCheck, this.numOfScharsFound)
+            let sCharsSubString: string = this.buildSCharsSubString(sCharToCheck, foundStyle.numOfSCharsRequired);
+
+            console.log(sCharsSubString)
+            this.lineToEdit = this.lineToEdit.replace(sCharsSubString, foundStyle.entry);
+            this.lineToEdit = this.lineToEdit.replace(sCharsSubString, foundStyle.exit);
+            console.log(this.lineToEdit)
+
+            this.reset();
+        }
+
+
+    }
+
+    private static findAnSChar(sChar: string, index: number): number{
+
+        for(let currentIndex = index; currentIndex < this.lineToEdit.length; currentIndex++){
+
+            let char:string = this.lineToEdit[currentIndex] ?? "";
+            if(char == "")
+                return -1;
+
+            if(char == sChar){
+                this.findAmountOfSCharsAndMovePointer(sChar, currentIndex)
+                return currentIndex;
+            }
+                
+
+
+        }
+
+        return -1;
+
+
+    } 
+
+    private static findAmountOfSCharsAndMovePointer(sChar: string, index: number){
+
+        let sCharAmount: number = 0;
+
+        for(let currentIndex = index; currentIndex < this.lineToEdit.length; currentIndex++){
+            if(this.lineToEdit[currentIndex] == sChar){
+                sCharAmount++
+                continue;
+            }
+
+            if(this.numOfScharsFound == 0) this.numOfScharsFound = sCharAmount;
+            this.lineIndexPointer += sCharAmount + currentIndex;
+            break;
+        }
+
+    }
+
+    private static buildSCharsSubString(sChar: string, sCharAmount: number):string{
+        let tempString: string = "";
+        for(let i = 0; i < sCharAmount; i++){
+            tempString+=sChar;
+        }
+
+        return tempString;
+    }
+
+}
+
+/* EXPERIMENTAL CODE
 
 
     private static findAStylingCharacter(lineToEdit: string, startingIndex: number):number{
-        //Stop when a styling character is found
 
         for(let i = startingIndex; i < lineToEdit.length; i++){
             let char: string = lineToEdit[i] ?? "";
@@ -25,6 +123,20 @@ export default class TextStyling{
         }
 
         return -1;
+    }
+
+    private static findNumberOfStylingCharacters(lineToEdit: string, index: number){
+
+        let count = 0;
+        let foundStylingChar = lineToEdit[index];
+
+        for(let i = index; index < lineToEdit.length; i++){
+
+            if(lineToEdit[i] == foundStylingChar)
+                count++;
+
+        }
+
     }
 
     public static isolateSubString(lineToEdit: string):string{
@@ -41,10 +153,8 @@ export default class TextStyling{
          * 
          * however if it is found,
          * we look for another styling character again, but this time AFTER the index of the startingStylingCharacter
-         * 
-         * with obsidian, in reading mode, if there isn't an ending character on that line, the style will just terminate, 
-         * so this time, if there isn't an ending character, we're just going to set the index to the end of the line, but minus 1
-         * because yknow things start at 0...
+         * if nothing is found, it won't style it either, so it will just exit and return nothing 
+         *
          * 
          * with this data found (the start and the end of this new substring)
          * we're just going to use the line to iterate and assign a new substring, just starting at the startingStylingCharacterindex
@@ -59,15 +169,15 @@ export default class TextStyling{
          * 
          * 
          * 
-         */
+         
         let startingStylingCharacterIndex:number = this.findAStylingCharacter(lineToEdit, 1);
         if(startingStylingCharacterIndex == -1)
             return "";
 
         let endingStylingCharacterIndex:number = this.findAStylingCharacter(lineToEdit, startingStylingCharacterIndex+1);
         if(endingStylingCharacterIndex == -1)
-            endingStylingCharacterIndex = lineToEdit.length - 1;
-        
+            return "";
+
 
         let subString: string = "";
 
@@ -79,5 +189,4 @@ export default class TextStyling{
     }
 
 
-
-}
+*/

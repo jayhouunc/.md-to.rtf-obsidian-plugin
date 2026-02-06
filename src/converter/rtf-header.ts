@@ -41,7 +41,7 @@ export default class RtfHeader{
         finalColorString += this.getHighlightTextColor();
 
         for(let i = 1; i <= 5; i++){
-            finalColorString += GeneralNoteData.textHeadings[i]?.headingColor;
+            finalColorString += GeneralNoteData.getATextHeadingData(i).headingColor;
         }
 
         return finalColorString.replace(/; ;/g, ";"); 
